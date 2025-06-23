@@ -1,0 +1,17 @@
+export const selectedFields = [
+  'username',
+  'email',
+  'avatar',
+  'bio',
+  'roles',
+  'followers',
+  'following',
+  'dob',
+  'cover_avatar',
+  'phone',
+  'location',
+  'website',
+  'gender',
+  'age',
+  '_id',
+].join(' ');
