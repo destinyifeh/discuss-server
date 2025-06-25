@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AdsModule } from './modules/ads/ads.module';
+import { FeedsModule } from './modules/feeds/feeds.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { UsersModule } from './modules/users/users.module';
@@ -22,6 +23,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AdsModule,
     AdminModule,
     PostsModule,
+    FeedsModule,
     // MongooseModule.forRootAsync({
     //   imports: [ConfigModule],
     //   inject: [ConfigService],
