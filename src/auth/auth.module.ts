@@ -9,8 +9,9 @@ import { MediaUploadModule } from 'src/modules/media-upload/media-upload.module'
 import { User, UserSchema } from 'src/modules/users/schemas/user.schema';
 import { UsersModule } from 'src/modules/users/users.module';
 import { jwtConstants } from './constants';
-import { JwtStrategy } from './jwt.strategy';
-import { LocalStrategy } from './local.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { LocalStrategy } from './strategies/local.strategy';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { LocalStrategy } from './local.strategy';
       signOptions: { expiresIn: '15m' },
     }),
   ],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [AuthService, LocalStrategy, JwtStrategy, GoogleStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

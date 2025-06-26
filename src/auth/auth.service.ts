@@ -27,6 +27,33 @@ export class AuthService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
+  generateJwt(user) {
+    const payload = {
+      sub: user._id,
+      email: user.email,
+    };
+    return this.jwtService.sign(payload);
+  }
+
+  async generateRefreshJwt(user) {
+    const payload = {
+      sub: user._id,
+      email: user.email,
+    };
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: jwtConstants.refreshSecret,
+      expiresIn: '7d',
+    });
+
+    await this.updateRefreshToken(user._id, refreshToken);
+
+    return refreshToken;
+  }
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userModel.findOne({ email }).exec();
+  }
+
   async findUserByResetToken(token: string): Promise<any> {
     const users = await this.userModel
       .find({
@@ -85,6 +112,7 @@ export class AuthService {
     return {
       access_token: this.jwtService.sign(payload),
       refresh_token: refreshToken,
+      data: user,
     };
   }
 
@@ -145,8 +173,10 @@ export class AuthService {
   async registerUser(data: CreateUserDto, avatar?: UploadApiResponse | null) {
     try {
       console.log('Data:', data);
+      const hashedPassword = await bcrypt.hash(data.password, 10);
       const createdUser = new this.userModel({
         ...data,
+        password: hashedPassword,
         avatar: avatar?.secure_url ?? null,
         avatar_public_id: avatar?.public_id ?? null,
       });
@@ -165,6 +195,29 @@ export class AuthService {
     }
   }
 
+  async registerGoogleUser(
+    data: CreateUserDto,
+    avatar?: UploadApiResponse | null,
+  ): Promise<User> {
+    try {
+      console.log('Data:', data);
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+      const createdUser = new this.userModel({
+        ...data,
+        password: hashedPassword,
+        avatar: avatar?.secure_url ?? null,
+        avatar_public_id: avatar?.public_id ?? null,
+      });
+
+      const savedUser = await createdUser.save();
+
+      console.log('Saved User:', savedUser);
+      return savedUser;
+    } catch (err) {
+      console.error('Error registering user:', err);
+      throw new InternalServerErrorException('Registration failed');
+    }
+  }
   async changePassword(id: string, oldPassword: string, newPassword: string) {
     const user = await this.userModel.findById(id).exec();
     if (!user) {

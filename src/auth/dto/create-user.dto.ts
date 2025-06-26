@@ -1,5 +1,4 @@
 import {
-  IsArray,
   IsBoolean,
   IsEmail,
   IsObject,
@@ -21,16 +20,8 @@ export class CreateUserDto {
   password: string;
 
   @IsOptional()
-  @IsObject()
-  avatar: string;
-
-  @IsOptional()
   @IsString()
   bio?: string;
-
-  @IsString()
-  @IsOptional()
-  joined: string;
 
   @IsString()
   @IsOptional()
@@ -48,15 +39,19 @@ export class CreateUserDto {
   @IsOptional()
   cover?: string;
 
-  @IsArray()
-  @IsOptional()
-  following?: string[];
-
-  @IsArray()
-  @IsOptional()
-  followers?: string[];
-
   @IsOptional()
   @IsBoolean()
   isAdvertiser?: boolean;
+
+  @IsOptional()
+  @IsString()
+  googleId?: string;
+
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  dob?: string;
 }

@@ -16,6 +16,9 @@ export class User {
   @Prop({ unique: true })
   displayName: string;
 
+  @Prop()
+  googleId: string;
+
   @Prop({ type: Types.ObjectId, ref: 'Post', required: true })
   posts: Types.ObjectId;
 
@@ -68,7 +71,7 @@ export class User {
   gender: string;
 
   @Prop()
-  age: number;
+  age?: number;
 
   @Prop({ type: Boolean, default: false })
   isAdmin: boolean;

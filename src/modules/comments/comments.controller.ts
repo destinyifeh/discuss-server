@@ -12,7 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from '../media-upload/media-upload.service';

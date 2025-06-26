@@ -19,8 +19,9 @@ import { MediaUploadService } from './../modules/media-upload/media-upload.servi
 import { AuthService } from './auth.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { LocalAuthGuard } from './local-auth.guards';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { LocalAuthGuard } from './guards/local-auth.guards';
 
 @Controller('auth')
 export class AuthController {
@@ -74,5 +75,23 @@ export class AuthController {
       oldPassword,
       newPassword,
     );
+  }
+
+  //Google auth
+
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuth(@Request() req) {
+    // initiates the Google OAuth2 login flow
+  }
+
+  @Get('google/redirect')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuthRedirect(@Request() req) {
+    // handle the successful Google login here
+    return {
+      message: 'Google login successful',
+      user: req.user,
+    };
   }
 }

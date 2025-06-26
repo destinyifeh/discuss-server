@@ -12,7 +12,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AdStatus } from 'src/common/utils/types/ad.types';
 import { AdsService } from './ads.service';
 import { CreateAdDto, UpdateAdDto } from './dto/create-ad.dto';

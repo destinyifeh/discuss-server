@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { UploadApiResponse } from 'cloudinary';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 import { CreatePostDto, UpdatePostDto } from './dto/create-post.dto';
