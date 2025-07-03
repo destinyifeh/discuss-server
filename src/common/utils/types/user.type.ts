@@ -11,6 +11,7 @@ export enum AccountStatus {
   ACTIVE = 'active',
   BANNED = 'banned',
   SUSPENDED = 'suspended',
+  INACTIVE = 'inactive',
 }
 
 export class ModerationAction {

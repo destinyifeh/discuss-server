@@ -89,9 +89,6 @@ export class User {
   resetPasswordExpires?: Date;
 
   @Prop({ type: Date, default: Date.now })
-  joined: Date;
-
-  @Prop({ type: Date, default: Date.now })
   createdAt: Date;
 
   @Prop({

@@ -83,11 +83,11 @@ export class AuthController {
     @Request() req,
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
-    const { oldPassword, newPassword } = changePasswordDto;
+    const { currentPassword, password } = changePasswordDto;
     return this.authService.changePassword(
       req.user.userId,
-      oldPassword,
-      newPassword,
+      currentPassword,
+      password,
     );
   }
 
