@@ -6,9 +6,6 @@ class NotificationUserDto {
   username: string;
 
   @IsString()
-  displayName: string;
-
-  @IsString()
   avatar: string; // or use @IsUrl() if you want strict URL validation
 }
 

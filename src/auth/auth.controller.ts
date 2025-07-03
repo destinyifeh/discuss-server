@@ -18,7 +18,11 @@ import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from './../modules/media-upload/media-upload.service';
 import { AuthService } from './auth.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { CreateUserDto } from './dto/create-user.dto';
+import {
+  CreateUserDto,
+  ForgotPassDto,
+  ResetPassDto,
+} from './dto/create-user.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guards';
@@ -35,6 +39,16 @@ export class AuthController {
   @Post('login')
   async login(@Request() req) {
     return this.authService.login(req.user);
+  }
+
+  @Post('forgot-password')
+  async forgotPass(@Body() data: ForgotPassDto) {
+    return this.authService.forgotPassword(data.email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() data: ResetPassDto) {
+    return this.authService.resetPassword(data.token, data.password);
   }
 
   //protected route
@@ -54,7 +68,7 @@ export class AuthController {
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async registerUser(
     @Body() data: CreateUserDto,
-    @UploadedFile(AvatarValidationPipe) avatar: Express.Multer.File,
+    @UploadedFile(AvatarValidationPipe) avatar?: Express.Multer.File,
   ) {
     let result: UploadApiResponse | null = null;
 

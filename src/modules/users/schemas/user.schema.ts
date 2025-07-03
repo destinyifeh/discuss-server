@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import {
   AccountStatus,
   ModerationAction,
@@ -10,25 +10,19 @@ export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ unique: true })
+  @Prop({ unique: true, required: true })
   username: string;
 
-  @Prop({ unique: true })
-  displayName: string;
-
-  @Prop()
+  @Prop({ type: String, default: null })
   googleId: string;
-
-  @Prop({ type: Types.ObjectId, ref: 'Post', required: true })
-  posts: Types.ObjectId;
 
   @Prop({ type: [String], enum: Role, default: [Role.USER] })
   roles: Role[];
 
-  @Prop()
-  dob: number;
+  @Prop({ default: null })
+  dob: Date;
 
-  @Prop({ unique: true })
+  @Prop({ unique: true, required: true })
   email: string;
 
   @Prop({ required: true })
@@ -42,9 +36,6 @@ export class User {
 
   @Prop({ type: String, default: null })
   bio: string;
-
-  @Prop({ type: String, default: null })
-  phone: string | null;
 
   @Prop({ type: String, default: null })
   location: string;
@@ -73,15 +64,6 @@ export class User {
   @Prop()
   age?: number;
 
-  @Prop({ type: Boolean, default: false })
-  isAdmin: boolean;
-
-  @Prop({ type: Boolean, default: false })
-  isSuperAdmin: boolean;
-
-  @Prop({ type: Boolean, default: false })
-  isBanned: boolean;
-
   @Prop({ enum: AccountStatus, default: AccountStatus.ACTIVE })
   status: AccountStatus;
 
@@ -97,12 +79,6 @@ export class User {
   @Prop({ type: String, default: null })
   banReason: string | null;
 
-  @Prop()
-  verifyToken: string;
-
-  @Prop()
-  verifyTokenExpires: Date;
-
   @Prop({ type: String })
   refreshToken: string;
 
@@ -112,7 +88,7 @@ export class User {
   @Prop()
   resetPasswordExpires?: Date;
 
-  @Prop()
+  @Prop({ type: Date, default: Date.now })
   joined: Date;
 
   @Prop({ type: Date, default: Date.now })

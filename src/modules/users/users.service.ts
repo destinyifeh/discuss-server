@@ -260,7 +260,6 @@ export class UsersService {
         content: 'started following you',
         user: {
           username: currentUser.username,
-          displayName: currentUser.displayName,
           avatar: currentUser.avatar,
         },
         recipientId: targetUser._id.toString(),

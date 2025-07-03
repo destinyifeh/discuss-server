@@ -39,7 +39,6 @@ export class CommentsService {
       ...data,
       userId: user._id,
       username: user.username,
-      displayName: user.displayName,
       avatar: user.avatar,
       image,
       post: data.postId,
@@ -79,7 +78,7 @@ export class CommentsService {
     // 1️⃣  Get the comment and its owner
     const comment = await this.commentModel
       .findById(commentId)
-      .populate('userId', 'username displayName avatar'); // populate owner fields
+      .populate('userId', 'username avatar'); // populate owner fields
 
     if (!comment) throw new NotFoundException('Comment not found');
 
@@ -108,7 +107,6 @@ export class CommentsService {
             content: 'liked your comment',
             user: {
               username: liker.username,
-              displayName: liker.displayName,
               avatar: liker.avatar,
             },
             recipientId: comment.userId.toString(), // who gets the notif

@@ -1,10 +1,12 @@
 // mail/sendgrid.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as sgMail from '@sendgrid/mail';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailerService {
+  private readonly logger = new Logger();
+
   constructor() {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
   }
@@ -32,7 +34,7 @@ export class MailerService {
 
   async sendResetEmail(to: string, token: string) {
     const link2 = `https://your‑app.com/reset-password?token=${token}`;
-    const link = `http://localhost:3000/reset-password?token=${token}`;
+    const link = `http://localhost:3001/reset-password?token=${token}`;
     try {
       await sgMail.send({
         to,

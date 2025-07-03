@@ -10,6 +10,7 @@ export const AvatarValidationPipe = new ParseFilePipeBuilder()
     maxSize: maxFileSize,
   })
   .build({
+    fileIsRequired: false,
     errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
     exceptionFactory: (errors) => {
       return new BadRequestException(

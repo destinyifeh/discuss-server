@@ -16,9 +16,6 @@ export class Post {
   username: string;
 
   @Prop()
-  displayName: string;
-
-  @Prop()
   avatar: string;
 
   @Prop({ default: false })

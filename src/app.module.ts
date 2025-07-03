@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { MailModule } from './mail/mail.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AdsModule } from './modules/ads/ads.module';
 import { FeedsModule } from './modules/feeds/feeds.module';
@@ -24,6 +25,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AdminModule,
     PostsModule,
     FeedsModule,
+    MailModule,
     // MongooseModule.forRootAsync({
     //   imports: [ConfigModule],
     //   inject: [ConfigService],

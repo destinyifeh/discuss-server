@@ -110,7 +110,6 @@ export class ReportsService {
       content: reason,
       user: {
         username: 'admin',
-        displayName: 'Admin',
         avatar: '/admin.png',
       },
       recipientId: user._id.toString(),

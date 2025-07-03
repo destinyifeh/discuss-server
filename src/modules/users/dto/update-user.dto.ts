@@ -38,6 +38,10 @@ export class UpdateUserDto {
   location?: string;
 
   @IsOptional()
+  @IsString()
+  dob?: string;
+
+  @IsOptional()
   @IsBoolean()
   isAdvertiser?: boolean;
 }

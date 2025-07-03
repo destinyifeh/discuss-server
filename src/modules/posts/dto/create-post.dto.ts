@@ -20,9 +20,6 @@ export class CreatePostDto {
   username: string;
 
   @IsString()
-  displayName: string;
-
-  @IsString()
   sectionId: string;
 
   @IsString()

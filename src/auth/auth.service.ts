@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpStatus,
   Injectable,
@@ -12,10 +13,11 @@ import * as bcrypt from 'bcrypt';
 import { UploadApiResponse } from 'cloudinary';
 import { randomBytes } from 'crypto';
 import { Model } from 'mongoose';
+import { MailService } from 'src/mail/mail.service';
 import { MailerService } from 'src/mailer/mailer.service';
 import { User } from 'src/modules/users/schemas/user.schema';
 import { UsersService } from 'src/modules/users/users.service';
-import { jwtConstants } from './constants';
+import { generateUrlTokenLink, jwtConstants } from './constants';
 import { CreateUserDto } from './dto/create-user.dto';
 @Injectable()
 export class AuthService {
@@ -24,6 +26,7 @@ export class AuthService {
 
     private readonly jwtService: JwtService,
     private readonly mailerService: MailerService,
+    private readonly mailService: MailService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
@@ -77,18 +80,21 @@ export class AuthService {
   }
 
   async validateUser(username: string, pass: string): Promise<any> {
-    const user = await this.userModel.findOne({ username }).exec();
+    const user = await this.userModel
+      .findOne({ username })
+      .lean() // plain JS object (not Mongoose doc)
+      .exec();
+    console.log(user, 'user');
 
-    if (!user) return null;
+    if (!user) throw new NotFoundException('User not found');
 
-    const isPasswordValid = await bcrypt.compare(pass, user.password);
-
-    if (isPasswordValid) {
-      const { password, ...result } = user;
-      return result;
+    const ok = await bcrypt.compare(pass, user.password);
+    if (!ok) {
+      throw new NotFoundException('Incorrect password');
     }
 
-    return null;
+    const { password, refreshToken, ...safeUser } = user;
+    return safeUser;
   }
 
   async login(user: any) {
@@ -112,7 +118,7 @@ export class AuthService {
     return {
       access_token: this.jwtService.sign(payload),
       refresh_token: refreshToken,
-      data: user,
+      user: user,
     };
   }
 
@@ -141,7 +147,7 @@ export class AuthService {
     }
   }
 
-  async forgotPassword(email: string): Promise<any> {
+  async forgotPassword(email: string) {
     const user = await this.userModel.findOne({ email }).exec();
     if (!user) throw new NotFoundException('User not found');
 
@@ -152,9 +158,16 @@ export class AuthService {
     user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
     await user.save();
     // Choose ONE mailer
-    await this.mailerService.sendResetEmail(email, token);
+    // await this.mailerService.sendResetEmail(email, token);
+    const link = generateUrlTokenLink(token);
+    await this.mailService.sendWith('gmail', email, 'Hello!', 'forgot-pass', {
+      username: user.username,
+      email: user.email,
+      link: link,
+      year: new Date().getFullYear(),
+    });
 
-    return { message: 'Reset link sent if the email exists' };
+    return { code: HttpStatus.OK, message: 'Reset link sent' };
   }
 
   async resetPassword(token: string, newPassword: string) {
@@ -167,12 +180,27 @@ export class AuthService {
 
     await user.save();
 
-    return { message: 'Password reset successful' };
+    return { code: HttpStatus.OK, message: 'Password reset successful' };
   }
 
   async registerUser(data: CreateUserDto, avatar?: UploadApiResponse | null) {
     try {
       console.log('Data:', data);
+
+      // ① Early lookup
+      const existing = await this.userModel.findOne({
+        $or: [{ email: data.email }, { username: data.username }],
+      });
+
+      if (existing) {
+        if (existing.email === data.email) {
+          throw new ConflictException('Email is already in use');
+        }
+        if (existing.username === data.username) {
+          throw new ConflictException('Username is already taken');
+        }
+      }
+
       const hashedPassword = await bcrypt.hash(data.password, 10);
       const createdUser = new this.userModel({
         ...data,
@@ -188,11 +216,20 @@ export class AuthService {
       return {
         code: HttpStatus.OK,
         message: 'success',
+        data: savedUser,
       };
     } catch (err) {
-      console.error('Error registering user:', err);
-      throw new InternalServerErrorException('Registration failed');
+      console.error('Error registering user:', err.message);
+      if (err?.message === 'Email is already in use') {
+        // Which field duplicated?
+        throw new ConflictException('Email is already in use');
+      }
+      if (err?.message === 'Username is already taken') {
+        throw new ConflictException('Username is already taken');
+      }
     }
+
+    throw new InternalServerErrorException('Registration failed');
   }
 
   async registerGoogleUser(

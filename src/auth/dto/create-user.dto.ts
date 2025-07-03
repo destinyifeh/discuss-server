@@ -1,12 +1,4 @@
-import {
-  IsBoolean,
-  IsEmail,
-  IsObject,
-  IsOptional,
-  IsString,
-  IsUrl,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
@@ -21,30 +13,6 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  bio?: string;
-
-  @IsString()
-  @IsOptional()
-  phone?: string;
-
-  @IsOptional()
-  @IsUrl()
-  website?: string;
-
-  @IsString()
-  @IsOptional()
-  location?: string;
-
-  @IsObject()
-  @IsOptional()
-  cover?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isAdvertiser?: boolean;
-
-  @IsOptional()
-  @IsString()
   googleId?: string;
 
   @IsOptional()
@@ -54,4 +22,17 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   dob?: string;
+}
+
+export class ForgotPassDto {
+  @IsEmail()
+  email: string;
+}
+
+export class ResetPassDto {
+  @MinLength(2)
+  password: string;
+
+  @IsString()
+  token: string;
 }

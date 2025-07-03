@@ -11,14 +11,12 @@ export class Notification {
   @Prop({
     type: {
       username: String,
-      displayName: String,
       avatar: String,
     },
     required: true,
   })
   user: {
     username: string;
-    displayName: string;
     avatar: string;
   };
 

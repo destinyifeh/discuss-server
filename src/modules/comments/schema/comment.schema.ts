@@ -19,9 +19,6 @@ export class Comment {
   username: string;
 
   @Prop()
-  displayName: string;
-
-  @Prop()
   avatar: string;
 
   @Prop()

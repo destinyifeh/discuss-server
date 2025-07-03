@@ -163,7 +163,6 @@ export class PostsService {
             type: 'like',
             user: {
               username: liker.username,
-              displayName: liker.displayName,
               avatar: liker.avatar,
             },
             content: 'liked your post',
