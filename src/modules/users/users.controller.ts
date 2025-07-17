@@ -9,15 +9,20 @@ import {
   Patch,
   Put,
   Query,
-  Request,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
+  UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 
-import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from '@nestjs/platform-express';
 import { AuthService } from 'src/auth/auth.service';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { multerConfig } from 'src/config/multer.config';
@@ -26,7 +31,7 @@ import { ProfileUploadTypeDto } from './dto/profile-upload-type.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
-@Controller()
+@Controller('user')
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
@@ -69,19 +74,57 @@ export class UsersController {
     return this.usersService.deleteUser(id);
   }
 
-  @Put('user/:id')
+  @Patch('profile-update')
+  @UseGuards(JwtAuthGuard)
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'avatar', maxCount: 1 },
+        { name: 'cover_avatar', maxCount: 1 },
+      ],
+      // { limits: { fileSize: 5 * 1024 * 1024 } }, // 5 MB each (optional)
+      multerConfig,
+    ),
+  )
   async updateUser(
-    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
     @Body() updateUserDto: UpdateUserDto,
+    @UploadedFiles()
+    files?: {
+      avatar?: Express.Multer.File[];
+      cover_avatar?: Express.Multer.File[];
+    },
   ) {
-    return this.usersService.updateUser(id, updateUserDto);
+    const avatarFile = files?.avatar?.[0];
+    const coverFile = files?.cover_avatar?.[0];
+
+    return this.usersService.updateUser(
+      user.userId,
+      updateUserDto,
+      avatarFile,
+      coverFile,
+    );
   }
 
   //protected route
   @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  getProfile(@Request() req) {
-    return req.user;
+  @Get('check-user/:username')
+  doesUserExistByUsername(
+    @CurrentUser() user: { userId: string },
+    @Param('username') username: string,
+  ) {
+    return this.usersService.doesUserExistByUsername(username);
+  }
+
+  //protected route
+  @UseGuards(JwtAuthGuard)
+  @Get(':username')
+  getUserByUsername(
+    @CurrentUser() user: { userId: string },
+    @Param('username') username: string,
+  ) {
+    return this.usersService.getUserByUsername(username);
   }
 
   @Patch('user/profile-upload/:id')
@@ -96,18 +139,31 @@ export class UsersController {
     return this.usersService.updateUserPhoto(id, body.fileType, result);
   }
   @UseGuards(JwtAuthGuard)
-  @Put(':id/follow')
+  @Patch(':targetId/follow')
   async follow(
-    @Param('id') targetUserId: string,
-    @Request() req: any, // Replace with custom user decorator if applicable
+    @Param('targetId') targetId: string,
+    @CurrentUser() user: { userId: string },
   ) {
-    const currentUserId = req.user.userId;
-    return this.usersService.followUser(currentUserId, targetUserId);
+    return this.usersService.followUser(user.userId, targetId);
   }
   @UseGuards(JwtAuthGuard)
   @Put(':id/unfollow')
-  async unfollow(@Param('id') targetUserId: string, @Request() req: any) {
-    const currentUserId = req.user.userId;
-    return this.usersService.unfollowUser(currentUserId, targetUserId);
+  async unfollow(
+    @Param('id') targetUserId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.usersService.unfollowUser(user.userId, targetUserId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':username/following')
+  async getFollowing(@Param('username') username: string) {
+    return this.usersService.getFollowing(username);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':username/followers')
+  async getFollowers(@Param('username') username: string) {
+    return this.usersService.getFollowers(username);
   }
 }

@@ -8,7 +8,9 @@ import { Model } from 'mongoose';
 import {
   AccountStatus,
   ModerationAction,
+  Role,
 } from 'src/common/utils/types/user.type';
+import { Post } from '../posts/schema/post.schema';
 import { User } from '../users/schemas/user.schema';
 import { AccountRestrictionDto } from './dto/account-restriction.dto';
 
@@ -16,6 +18,7 @@ import { AccountRestrictionDto } from './dto/account-restriction.dto';
 export class AdminService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Post.name) private readonly postModel: Model<Post>,
   ) {}
 
   private pushHistory(
@@ -127,5 +130,199 @@ export class AdminService {
 
       await user.save();
     }
+  }
+
+  async getUserStats() {
+    const currentMonth = new Date();
+    const lastMonth = new Date();
+    lastMonth.setMonth(currentMonth.getMonth() - 1);
+
+    const thisMonthCount = await this.userModel.countDocuments({
+      createdAt: {
+        $gte: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1),
+      },
+    });
+
+    const lastMonthCount = await this.userModel.countDocuments({
+      createdAt: {
+        $gte: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1),
+        $lt: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1),
+      },
+    });
+
+    const totalUsers = await this.userModel.countDocuments();
+
+    const growth =
+      lastMonthCount === 0
+        ? 100
+        : ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+
+    return {
+      code: '200',
+      totalUsers,
+      growth: parseFloat(growth.toFixed(2)),
+    };
+  }
+
+  async getUserDistribution() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const totalUsers = await this.userModel.countDocuments();
+
+    const newUsers = await this.userModel.countDocuments({
+      createdAt: { $gte: thirtyDaysAgo },
+    });
+
+    const activeUsers = await this.userModel.countDocuments({
+      lastActive: { $gte: thirtyDaysAgo },
+    });
+
+    const inactiveUsers = totalUsers - activeUsers;
+
+    return {
+      code: '200',
+      distribution: {
+        newUsers: Math.round((newUsers / totalUsers) * 100),
+        activeUsers: Math.round((activeUsers / totalUsers) * 100),
+        inactiveUsers: Math.round((inactiveUsers / totalUsers) * 100),
+      },
+    };
+  }
+
+  async getAllUsersWithPostCount(
+    page = 1,
+    limit = 10,
+    search = '',
+    status?: 'active' | 'inactive' | 'suspended',
+  ) {
+    const skip = (page - 1) * limit;
+
+    // Base query
+    const query: any = {};
+
+    // Add keyword search if provided
+    if (search) {
+      query.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // Add status filter if provided
+    if (status) {
+      query.status = status;
+    }
+
+    // Get total count
+    const totalUsers = await this.userModel.countDocuments();
+
+    // Get paginated users
+    const users = await this.userModel
+      .find(query)
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const userData = await Promise.all(
+      users.map(async (user) => {
+        const postCount = await this.postModel.countDocuments({
+          user: user._id,
+        });
+        return {
+          _id: user._id,
+          name: user.username,
+          username: user.username,
+          status: user.status,
+          avatar: user.avatar,
+          email: user.email,
+          role: user.role,
+          postCount,
+        };
+      }),
+    );
+
+    return {
+      code: '200',
+      users: userData,
+      pagination: {
+        total: totalUsers,
+        page,
+        limit,
+        pages: Math.ceil(totalUsers / limit),
+      },
+    };
+  }
+
+  async getUserDistributionAndStats() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const [totalUsers, newUsers, activeUsers] = await Promise.all([
+      this.userModel.countDocuments(),
+      this.userModel.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+      this.userModel.countDocuments({ lastActive: { $gte: thirtyDaysAgo } }),
+    ]);
+
+    const inactiveUsers = totalUsers - activeUsers;
+
+    const currentMonth = new Date();
+    const lastMonth = new Date();
+    lastMonth.setMonth(currentMonth.getMonth() - 1);
+
+    const [thisMonthCount, lastMonthCount] = await Promise.all([
+      this.userModel.countDocuments({
+        createdAt: {
+          $gte: new Date(
+            currentMonth.getFullYear(),
+            currentMonth.getMonth(),
+            1,
+          ),
+        },
+      }),
+      this.userModel.countDocuments({
+        createdAt: {
+          $gte: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1),
+          $lt: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1),
+        },
+      }),
+    ]);
+
+    const growth =
+      lastMonthCount === 0
+        ? thisMonthCount > 0
+          ? 100
+          : 0
+        : ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+
+    return {
+      code: '200',
+      distribution: {
+        newUsers:
+          totalUsers === 0 ? 0 : Math.round((newUsers / totalUsers) * 100),
+        activeUsers:
+          totalUsers === 0 ? 0 : Math.round((activeUsers / totalUsers) * 100),
+        inactiveUsers:
+          totalUsers === 0 ? 0 : Math.round((inactiveUsers / totalUsers) * 100),
+      },
+      totalUsers,
+      growth: parseFloat(growth.toFixed(2)),
+    };
+  }
+
+  //update role
+  async updateUserRole(role: Role, userId: string) {
+    const user = await this.userModel.findById(userId).exec();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.role = role;
+    await user.save();
+
+    return { code: '200', newRole: user.role, message: 'Success' };
   }
 }

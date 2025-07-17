@@ -2,21 +2,26 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Patch,
   Post,
-  Request,
+  Req,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadApiResponse } from 'cloudinary';
+import { Request, Response } from 'express';
 import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from './../modules/media-upload/media-upload.service';
 import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import {
   CreateUserDto,
@@ -37,8 +42,16 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Request() req) {
-    return this.authService.login(req.user);
+  async login(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response, // <-- Inject Response object
+  ) {
+    return this.authService.login(req.user, res);
+  }
+
+  @Post('logout')
+  async logout(@Res({ passthrough: true }) res: Response) {
+    return this.authService.logout(res);
   }
 
   @Post('forgot-password')
@@ -54,13 +67,19 @@ export class AuthController {
   //protected route
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Request() req) {
+  getProfile(@Req() req: Request) {
     return req.user;
   }
   @Post('refresh-token')
-  async refresh(@Body() body: { refresh_token: string }) {
-    const token = body.refresh_token;
-    return this.authService.refreshToken(token);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const token =
+      req.cookies?.refreshToken || // cookie path=/auth/refresh-token
+      req.body?.refreshToken || // fallback if body is sent.
+      null;
+    return this.authService.refreshToken(token, res);
   }
 
   @Post('register')
@@ -80,12 +99,12 @@ export class AuthController {
   @Patch('change-password')
   @UseGuards(JwtAuthGuard)
   async changePassword(
-    @Request() req,
+    @CurrentUser() user: { userId: string },
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
     const { currentPassword, password } = changePasswordDto;
     return this.authService.changePassword(
-      req.user.userId,
+      user.userId,
       currentPassword,
       password,
     );
@@ -93,19 +112,25 @@ export class AuthController {
 
   //Google auth
 
-  @Get('google')
+  @Get('google/login')
   @UseGuards(GoogleAuthGuard)
-  async googleAuth(@Request() req) {
-    // initiates the Google OAuth2 login flow
-  }
+  async googleAuth() {}
 
-  @Get('google/redirect')
+  @Get('callback/google')
   @UseGuards(GoogleAuthGuard)
-  async googleAuthRedirect(@Request() req) {
+  async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
     // handle the successful Google login here
-    return {
-      message: 'Google login successful',
-      user: req.user,
-    };
+    const token = req.user as string;
+
+    return res.redirect(
+      `${process.env.CLIENT_URL}/callback/google?token=${token}`,
+    );
+  }
+  @Get('google/user/:token')
+  async getGoogleUser(
+    @Param('token') token: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.getGoogleLoginUser(token, res);
   }
 }

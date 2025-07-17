@@ -1,38 +1,37 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { PassportStrategy } from '@nestjs/passport';
+import { Request } from 'express';
 import { Model } from 'mongoose';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AccountStatus } from 'src/common/utils/types/user.type';
 import { User } from 'src/modules/users/schemas/user.schema';
 import { jwtConstants } from '../constants';
 
-// @Injectable()
-// export class JwtStrategy extends PassportStrategy(Strategy) {
-//   constructor() {
-//     super({
-//       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-//       ignoreExpiration: false,
-//       secretOrKey: jwtConstants.secret,
-//     });
-//   }
-
-//   async validate(payload: any) {
-//     return { userId: payload.sub, username: payload.username };
-//   }
-// }
+interface JwtPayload {
+  sub: string; // user ID
+  username: string;
+  iat: number;
+  exp: number;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {
+    const cookieExtractor = (req: Request): string | null => {
+      return req.cookies?.accessToken ?? null; // match cookie name
+    };
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        cookieExtractor,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: jwtConstants.secret,
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: JwtPayload) {
     const user = await this.userModel.findById(payload.sub);
     if (!user) throw new ForbiddenException('Invalid token');
 
@@ -65,8 +64,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: user._id.toString(),
       username: user.username,
-      roles: user.roles,
-      user: user,
+      role: user.role,
     };
   }
 }

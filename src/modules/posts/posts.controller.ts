@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { UploadApiResponse } from 'cloudinary';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from '../media-upload/media-upload.service';
@@ -32,6 +33,7 @@ export class PostsController {
   async cratePost(
     @Body() data: CreatePostDto,
     @UploadedFiles() files: Express.Multer.File[],
+    @CurrentUser() user: { userId: string },
   ) {
     let result: UploadApiResponse[] | null = null;
     if (files?.length > 0) {
@@ -39,7 +41,7 @@ export class PostsController {
         files.map((f) => this.mediaUploadService.uploadImage(f)),
       );
     }
-    return this.postsService.createPost(data, result);
+    return this.postsService.createPost(user.userId, data, result);
   }
 
   @Put(':id')

@@ -1,11 +1,14 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
+  ParseEnumPipe,
   Patch,
-  Request,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Role } from 'src/common/utils/types/user.type';
 import { AdminService } from './admin.service';
@@ -18,14 +21,53 @@ import { RolesGuard } from './guards/role.gurad';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  @Patch(':id/action')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Patch('users/:id/action')
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.USER)
   userAction(
     @Param('id') id: string,
     @Body() dto: AccountRestrictionDto,
-    @Request() req,
+    @CurrentUser() user: { username: string },
   ) {
-    const performedBy = req.user.username; // adjust if using different payload
+    const performedBy = user.username; // adjust if using different payload
     return this.adminService.accountRestrictionAction(id, dto, performedBy);
+  }
+
+  @Get('user-stats')
+  async getUserStats() {
+    return this.adminService.getUserStats();
+  }
+
+  @Get('user-distribution')
+  async getUserDistribution() {
+    return this.adminService.getUserDistribution();
+  }
+
+  @Get('user-distribution-and-stats')
+  async getUserDistributionAndStats() {
+    return this.adminService.getUserDistributionAndStats();
+  }
+
+  @Get('users')
+  async getPaginatedUsers(
+    @Query('search') search: string,
+    @Query('status') status: 'active' | 'inactive' | 'suspended',
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.adminService.getAllUsersWithPostCount(
+      Number(page),
+      Number(limit),
+      search,
+      status,
+    );
+  }
+
+  @Patch('update-role/:userId')
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async updateUserRole(
+    @Query('role', new ParseEnumPipe(Role)) role: Role,
+    @Param('userId') userId: string,
+  ) {
+    return this.adminService.updateUserRole(role, userId);
   }
 }

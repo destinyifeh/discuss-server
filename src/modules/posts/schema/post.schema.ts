@@ -7,7 +7,7 @@ export type PostDocument = HydratedDocument<Post>;
 @Schema({ timestamps: true }) // adds createdAt, updatedAt
 export class Post {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
+  user: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   author: Types.ObjectId;

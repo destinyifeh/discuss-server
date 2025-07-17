@@ -5,20 +5,17 @@ export type UserDocument = HydratedDocument<Notification>;
 
 @Schema({ timestamps: true })
 export class Notification {
-  @Prop({ enum: ['like', 'comment', 'follow'], required: true })
-  type: string;
-
   @Prop({
-    type: {
-      username: String,
-      avatar: String,
-    },
+    enum: ['liked', 'replied', 'followed', 'warning', 'mentioned'],
     required: true,
   })
-  user: {
-    username: string;
-    avatar: string;
-  };
+  type: string;
+
+  @Prop({ required: true })
+  senderName: string;
+
+  @Prop({ required: true })
+  senderAvatar: string;
 
   @Prop({ required: true })
   content: string;
@@ -28,9 +25,6 @@ export class Notification {
 
   @Prop({ default: false })
   read: boolean;
-
-  @Prop()
-  recipientId: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   recipient: Types.ObjectId;

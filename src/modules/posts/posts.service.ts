@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { UploadApiResponse } from 'cloudinary';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { Comment } from '../comments/schema/comment.schema';
 import { MediaUploadService } from '../media-upload/media-upload.service';
@@ -24,7 +24,11 @@ export class PostsService {
     private readonly mediaUploadService: MediaUploadService,
   ) {}
 
-  async createPost(data: CreatePostDto, images?: UploadApiResponse[] | null) {
+  async createPost(
+    currentUserId: string,
+    data: CreatePostDto,
+    images?: UploadApiResponse[] | null,
+  ) {
     const formattedImages: PostImage[] = Array.isArray(images)
       ? images.map((img) => ({
           secure_url: img.secure_url,
@@ -37,6 +41,7 @@ export class PostsService {
       images: formattedImages,
       author: data.userId,
       commentsClosed: data.commentsClosed ?? false,
+      user: new Types.ObjectId(currentUserId),
     });
 
     return {
@@ -156,18 +161,15 @@ export class PostsService {
       post.likedBy.push(userId);
       post.likes += 1;
 
-      if (String(post.userId) !== userId) {
+      if (String(post.user) !== userId) {
         const liker = await this.userModel.findById(userId);
         if (liker) {
           await this.notificationsService.createNotification({
-            type: 'like',
-            user: {
-              username: liker.username,
-              avatar: liker.avatar,
-            },
+            type: 'liked',
+            senderName: liker.username,
+            senderAvatar: liker.avatar,
             content: 'liked your post',
-            recipientId: post.userId.toString(),
-            recipient: post.userId.toString(),
+            recipient: post.user.toString(),
           });
         }
       }

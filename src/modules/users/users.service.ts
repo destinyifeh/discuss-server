@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   HttpStatus,
   Injectable,
   InternalServerErrorException,
@@ -7,9 +8,10 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { UploadApiResponse } from 'cloudinary';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import { selectedFields } from '../../auth/dto/selectedFields.dto';
+
+import { selectedFields } from 'src/common/utils/user.mapper';
 import { UserResponseDto } from '../../auth/dto/user-response.dto';
 import { GetUsersParams } from '../../auth/dto/user-types.dto';
 import { MediaUploadService } from '../media-upload/media-upload.service';
@@ -44,6 +46,36 @@ export class UsersService {
       console.log(error);
       throw new InternalServerErrorException('Failed to get user');
     }
+  }
+
+  async getUserByUsername(username: string) {
+    const user = await this.userModel
+      .findOne({ username })
+      .select(selectedFields)
+      .lean();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      code: '200',
+      message: 'User retrieved successfully',
+      user: user,
+    };
+  }
+
+  async doesUserExistByUsername(username: string) {
+    const user = await this.userModel.findOne({ username });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      code: '200',
+      message: 'User found',
+    };
   }
 
   async getUsers() {
@@ -110,15 +142,15 @@ export class UsersService {
       const sanitized = new UserResponseDto(users);
 
       return {
-        code: HttpStatus.OK,
+        code: '200',
         message: 'Users retrieved successfully',
         data: {
           users,
           pagination: {
             totalItems: total,
-            currentPage: page,
-            totalPages: Math.ceil(total / limit),
-            perPage: limit,
+            page: page,
+            pages: Math.ceil(total / limit),
+            limit: limit,
           },
         },
       };
@@ -128,22 +160,77 @@ export class UsersService {
     }
   }
 
-  async updateUser(id: string, updateUserDto: UpdateUserDto) {
+  async updateUser(
+    id: string,
+    dto: UpdateUserDto,
+    avatarFile?: Express.Multer.File,
+    coverFile?: Express.Multer.File,
+  ) {
+    const current = await this.userModel.findById(id).lean().exec();
+    if (!current) throw new NotFoundException('User not found');
+
+    /* -------- username uniqueness check ----------------------- */
+    if (dto.username && dto.username !== current.username) {
+      const taken = await this.userModel
+        .findOne({ username: dto.username })
+        .lean();
+      if (taken) throw new ConflictException('Username is already in use');
+    }
+
+    /* -------- build updates object ---------------------------- */
+    const updates: any = {
+      ...dto,
+    };
+
+    /* -------- handle cover image ------------------------------ */
+    if (coverFile) {
+      const { secure_url, public_id } =
+        await this.mediaUploadService.uploadImage(coverFile, 'dee');
+
+      updates.cover_avatar = secure_url;
+      updates.cover_avatar_public_id = public_id;
+
+      if (current.cover_avatar_public_id) {
+        await this.mediaUploadService.deleteImage(
+          current.cover_avatar_public_id,
+        );
+      }
+    }
+
+    /* -------- handle avatar ----------------------------------- */
+    if (avatarFile) {
+      const { secure_url, public_id } =
+        await this.mediaUploadService.uploadImage(avatarFile, 'dee');
+
+      updates.avatar = secure_url;
+      updates.avatar_public_id = public_id;
+
+      if (current.avatar_public_id) {
+        await this.mediaUploadService.deleteImage(current.avatar_public_id);
+      }
+    }
+
+    /* -------- perform update ---------------------------------- */
     const user = await this.userModel
-      .findByIdAndUpdate(id, updateUserDto, {
+      .findByIdAndUpdate(id, updates, {
         new: true,
         runValidators: true,
       })
+      .select([
+        'website',
+        'bio',
+        'location',
+        'username',
+        'avatar',
+        'cover_avatar',
+      ])
+      .lean()
       .exec();
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
 
     return {
       code: HttpStatus.OK,
       message: 'User record updated',
-      data: user,
+      user: user,
     };
   }
 
@@ -202,75 +289,6 @@ export class UsersService {
     };
   }
 
-  async followUser2(currentUserId: string, targetUserId: string) {
-    if (currentUserId === targetUserId) {
-      throw new BadRequestException('You cannot follow yourself');
-    }
-
-    const currentUser = await this.userModel.findById(currentUserId);
-    const targetUser = await this.userModel.findById(targetUserId);
-
-    if (!targetUser) throw new NotFoundException('User to follow not found');
-
-    if (currentUser && !currentUser.following.includes(targetUserId)) {
-      currentUser.following.push(targetUserId);
-      await currentUser.save();
-    }
-
-    if (!targetUser.followers.includes(currentUserId)) {
-      targetUser.followers.push(currentUserId);
-      await targetUser.save();
-    }
-
-    return { message: 'Followed successfully' };
-  }
-
-  async followUser(currentUserId: string, targetUserId: string) {
-    if (currentUserId === targetUserId) {
-      throw new BadRequestException('You cannot follow yourself');
-    }
-
-    const [currentUser, targetUser] = await Promise.all([
-      this.userModel.findById(currentUserId),
-      this.userModel.findById(targetUserId),
-    ]);
-
-    if (!currentUser) throw new NotFoundException('Current user not found');
-    if (!targetUser) throw new NotFoundException('User to follow not found');
-
-    /* ---------- 1️⃣  Add follow relationship if not already following ---------- */
-    let updated = false;
-
-    if (!currentUser.following.includes(targetUserId)) {
-      currentUser.following.push(targetUserId);
-      await currentUser.save();
-      updated = true;
-    }
-
-    if (!targetUser.followers.includes(currentUserId)) {
-      targetUser.followers.push(currentUserId);
-      await targetUser.save();
-      updated = true;
-    }
-
-    /* ---------- 2️⃣  If follow happened (not duplicate) create notification ---- */
-    if (updated) {
-      await this.notificationService.createNotification({
-        type: 'follow',
-        content: 'started following you',
-        user: {
-          username: currentUser.username,
-          avatar: currentUser.avatar,
-        },
-        recipientId: targetUser._id.toString(),
-        recipient: targetUser._id.toString(),
-        // postId: undefined  // not needed for follow notif
-      });
-    }
-
-    return { message: updated ? 'Followed successfully' : 'Already following' };
-  }
-
   async unfollowUser(currentUserId: string, targetUserId: string) {
     const currentUser = await this.userModel.findById(currentUserId);
     const targetUser = await this.userModel.findById(targetUserId);
@@ -282,15 +300,119 @@ export class UsersService {
       throw new NotFoundException('Current user record not found');
     }
     currentUser.following = currentUser.following.filter(
-      (id) => id !== targetUserId,
+      (id) => id !== new Types.ObjectId(targetUserId),
     );
     targetUser.followers = targetUser.followers.filter(
-      (id) => id !== currentUserId,
+      (id) => id !== new Types.ObjectId(currentUserId),
     );
 
     await currentUser.save();
     await targetUser.save();
 
     return { message: 'Unfollowed successfully' };
+  }
+
+  //Follow and unfollow user functionality
+
+  async followUser(currentUserId: string, targetUserId: string) {
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('You cannot follow yourself');
+    }
+
+    /** 1️⃣ Fetch both users */
+    const [currentUser, targetUser] = await Promise.all([
+      this.userModel
+        .findById(currentUserId)
+        .select('following username avatar'),
+      this.userModel.findById(targetUserId).select('followers following'),
+    ]);
+
+    if (!currentUser) throw new NotFoundException('Current user not found');
+    if (!targetUser) throw new NotFoundException('Target user not found');
+
+    /** 2️⃣ Check if already following */
+    const isAlreadyFollowing = currentUser.following.some((id) =>
+      id.equals(targetUserId),
+    );
+    console.log(isAlreadyFollowing, 'foll22');
+    /** 3️⃣ Prepare atomic updates */
+    const userUpdate = isAlreadyFollowing
+      ? { $pull: { following: new Types.ObjectId(targetUserId) } }
+      : { $addToSet: { following: new Types.ObjectId(targetUserId) } };
+
+    const targetUpdate = isAlreadyFollowing
+      ? { $pull: { followers: new Types.ObjectId(currentUserId) } }
+      : { $addToSet: { followers: new Types.ObjectId(currentUserId) } };
+
+    /** 4️⃣ Perform updates */
+    await Promise.all([
+      this.userModel.updateOne({ _id: currentUserId }, userUpdate),
+      this.userModel.updateOne({ _id: targetUserId }, targetUpdate),
+    ]);
+    console.log(isAlreadyFollowing, 'foll25');
+
+    /** 5️⃣ Optional: Send notification */
+    if (!isAlreadyFollowing) {
+      await this.notificationService.createNotification({
+        type: 'followed',
+        content: 'started following you',
+        recipient: targetUserId,
+        senderName: currentUser.username,
+        senderAvatar: currentUser.avatar,
+      });
+      console.log(isAlreadyFollowing, 'foll29');
+    }
+
+    /** 6️⃣ Return updated counts */
+    const [updatedCurrent, updatedTarget] = await Promise.all([
+      this.userModel.findById(currentUserId).select('following'),
+      this.userModel.findById(targetUserId).select('followers following'),
+    ]);
+
+    return {
+      message: isAlreadyFollowing
+        ? 'Unfollowed successfully'
+        : 'Followed successfully',
+      isFollowing: !isAlreadyFollowing,
+      followers: updatedTarget?.followers ?? [],
+      following: updatedTarget?.following ?? [],
+      currentUserFollowings: updatedCurrent?.following ?? [],
+      currentUserFollowers: updatedCurrent?.followers ?? [],
+    };
+  }
+
+  async getFollowing(username: string) {
+    const user = await this.userModel
+      .findOne({ username })
+      .select('following _id')
+      .populate('following', 'username avatar') // choose fields
+      .lean();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    console.log(user, 'user followings...');
+    return {
+      code: '200',
+      userId: user?._id,
+      following: user?.following || [],
+    };
+  }
+
+  async getFollowers(username: string) {
+    const user = await this.userModel
+      .findOne({ username })
+      .select('followers _id')
+      .populate('followers', 'username avatar') // choose fields
+      .lean();
+
+    if (!user) throw new NotFoundException('User not found');
+
+    console.log(user, 'userrr');
+    return {
+      code: '200',
+      userId: user?._id,
+      followers: user?.followers || [],
+    };
   }
 }

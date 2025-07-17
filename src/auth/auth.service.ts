@@ -12,12 +12,21 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { UploadApiResponse } from 'cloudinary';
 import { randomBytes } from 'crypto';
+import { Response } from 'express';
 import { Model } from 'mongoose';
+import { toSafeUser } from 'src/common/utils/user.mapper';
 import { MailService } from 'src/mail/mail.service';
 import { MailerService } from 'src/mailer/mailer.service';
 import { User } from 'src/modules/users/schemas/user.schema';
 import { UsersService } from 'src/modules/users/users.service';
-import { generateUrlTokenLink, jwtConstants } from './constants';
+import {
+  ACCESS_TOKEN,
+  ACCESS_TOKEN_EXPIRATION_MS,
+  generateUrlTokenLink,
+  jwtConstants,
+  REFRESH_TOKEN,
+  REFRESH_TOKEN_EXPIRATION_MS,
+} from './constants';
 import { CreateUserDto } from './dto/create-user.dto';
 @Injectable()
 export class AuthService {
@@ -72,6 +81,33 @@ export class AuthService {
 
     return null;
   }
+
+  private setAuthCookies(
+    res: Response,
+    accessToken: string,
+    refreshToken: string,
+  ) {
+    res.cookie(ACCESS_TOKEN, accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // true in production for HTTPS
+      sameSite: 'lax', // Adjust as needed: 'Strict', 'None' (requires secure: true)
+      maxAge: ACCESS_TOKEN_EXPIRATION_MS, // in milliseconds
+      path: '/',
+    });
+    res.cookie(REFRESH_TOKEN, refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: REFRESH_TOKEN_EXPIRATION_MS, // in milliseconds
+      path: '/',
+    });
+  }
+
+  private clearAuthCookies(res: Response) {
+    res.clearCookie(ACCESS_TOKEN, { path: '/' });
+    res.clearCookie(REFRESH_TOKEN, { path: '/' });
+  }
+
   async updateRefreshToken(userId: string, refreshToken: string) {
     const hashed = await bcrypt.hash(refreshToken, 10);
     return this.userModel
@@ -84,7 +120,6 @@ export class AuthService {
       .findOne({ username })
       .lean() // plain JS object (not Mongoose doc)
       .exec();
-    console.log(user, 'user');
 
     if (!user) throw new NotFoundException('User not found');
 
@@ -97,37 +132,31 @@ export class AuthService {
     return safeUser;
   }
 
-  async login(user: any) {
+  async login(user: any, res: Response) {
     const payload = { username: user.username, sub: user._id };
 
-    // const accessToken = this.jwtService.sign(payload, {
-    //   secret: jwtConstants.secret,
-    //   expiresIn: '15m',
-    // });
+    const accessToken = this.jwtService.sign(payload);
 
     const refreshToken = this.jwtService.sign(payload, {
       secret: jwtConstants.refreshSecret,
-      expiresIn: '7d',
+      // expiresIn: '30d',
+      expiresIn: '50m',
     });
     // Save hashed refresh token in DB
     await this.updateRefreshToken(user._id, refreshToken);
+    this.setAuthCookies(res, accessToken, refreshToken);
 
-    // return {
-    //   access_token: this.jwtService.sign(payload),
-    // };
-    return {
-      access_token: this.jwtService.sign(payload),
-      refresh_token: refreshToken,
-      user: user,
-    };
+    const safeUser = toSafeUser(user);
+
+    return { user: safeUser };
   }
 
-  async refreshToken(token: string): Promise<any> {
+  async refreshToken(token: string, res: Response) {
     try {
       const payload = this.jwtService.verify(token, {
         secret: jwtConstants.refreshSecret,
       });
-
+      console.log(payload, 'payloadbver');
       const user = await this.userModel.findById(payload.sub).exec();
 
       if (!user) {
@@ -137,14 +166,27 @@ export class AuthService {
       const isMatch = await bcrypt.compare(token, user.refreshToken);
       if (!isMatch) throw new ForbiddenException('Invalid refresh token');
 
-      const newAccessToken = { username: user.username, sub: user._id };
+      const newPayload = { username: user.username, sub: user._id };
+      const accessToken = this.jwtService.sign(newPayload);
+      const refreshToken = this.jwtService.sign(newPayload, {
+        secret: jwtConstants.refreshSecret,
+        //expiresIn: '30d',
+        expiresIn: '50m',
+      });
+      this.setAuthCookies(res, accessToken, refreshToken);
       return {
-        access_token: this.jwtService.sign(newAccessToken),
+        message: 'Refreshed',
+        code: HttpStatus.OK,
       };
     } catch (err) {
       console.log(err);
       throw new ForbiddenException('Refresh token expired or invalid');
     }
+  }
+
+  logout(res: Response) {
+    this.clearAuthCookies(res);
+    return { message: 'Logged out successfully', code: '200' };
   }
 
   async forgotPassword(email: string) {
@@ -232,18 +274,13 @@ export class AuthService {
     throw new InternalServerErrorException('Registration failed');
   }
 
-  async registerGoogleUser(
-    data: CreateUserDto,
-    avatar?: UploadApiResponse | null,
-  ): Promise<User> {
+  async registerGoogleUser(data: any): Promise<User> {
     try {
       console.log('Data:', data);
       const hashedPassword = await bcrypt.hash(data.password, 10);
       const createdUser = new this.userModel({
         ...data,
         password: hashedPassword,
-        avatar: avatar?.secure_url ?? null,
-        avatar_public_id: avatar?.public_id ?? null,
       });
 
       const savedUser = await createdUser.save();
@@ -255,6 +292,34 @@ export class AuthService {
       throw new InternalServerErrorException('Registration failed');
     }
   }
+
+  async getGoogleLoginUser(token: string, res: Response) {
+    const payload = this.jwtService.verify(token);
+    const user = await this.userModel.findById(payload.sub).exec();
+
+    if (!user) {
+      throw new ForbiddenException('User not found');
+    }
+
+    const newPayload = { username: user.username, sub: user._id };
+    const accessToken = this.jwtService.sign(newPayload);
+    const refreshToken = this.jwtService.sign(newPayload, {
+      secret: jwtConstants.refreshSecret,
+      //expiresIn: '30d',
+      expiresIn: '50m',
+    });
+
+    // Save hashed refresh token in DB.
+    await this.updateRefreshToken(user._id.toString(), refreshToken);
+
+    //set cookies
+    this.setAuthCookies(res, accessToken, refreshToken);
+
+    const safeUser = toSafeUser(user);
+
+    res.json({ user: safeUser });
+  }
+
   async changePassword(id: string, oldPassword: string, newPassword: string) {
     const user = await this.userModel.findById(id).exec();
     if (!user) {

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 import {
   AccountStatus,
   ModerationAction,
@@ -16,8 +16,8 @@ export class User {
   @Prop({ type: String, default: null })
   googleId: string;
 
-  @Prop({ type: [String], enum: Role, default: [Role.USER] })
-  roles: Role[];
+  @Prop({ type: String, enum: Role, default: Role.USER })
+  role: Role;
 
   @Prop({ default: null })
   dob: Date;
@@ -49,20 +49,17 @@ export class User {
   @Prop({ type: String, default: null })
   website: string;
 
-  @Prop({ type: [String], default: [] })
-  following: string[];
+  @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
+  followers: Types.ObjectId[];
 
-  @Prop({ type: [String], default: [] })
-  followers: string[];
-
-  @Prop({ type: Boolean, default: false })
-  isAdvertiser: boolean;
+  @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
+  following: Types.ObjectId[];
 
   @Prop()
   gender: string;
 
-  @Prop()
-  age?: number;
+  @Prop({ type: Date, default: Date.now })
+  lastActive: Date;
 
   @Prop({ enum: AccountStatus, default: AccountStatus.ACTIVE })
   status: AccountStatus;

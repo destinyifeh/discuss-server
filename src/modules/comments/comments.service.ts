@@ -103,14 +103,12 @@ export class CommentsService {
         const liker = await this.userModel.findById(userId).lean();
         if (liker) {
           await this.notificationsService.createNotification({
-            type: 'like',
+            type: 'liked',
             content: 'liked your comment',
-            user: {
-              username: liker.username,
-              avatar: liker.avatar,
-            },
-            recipientId: comment.userId.toString(), // who gets the notif
-            recipient: comment._id.toString(), // optional ref
+            senderName: liker.username,
+            senderAvatar: liker.avatar,
+
+            recipient: comment.userId.toString(), // who gets the note
           });
         }
       }

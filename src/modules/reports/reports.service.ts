@@ -108,11 +108,8 @@ export class ReportsService {
     await this.notificationsService.createNotification({
       type: 'warning',
       content: reason,
-      user: {
-        username: 'admin',
-        avatar: '/admin.png',
-      },
-      recipientId: user._id.toString(),
+      senderName: 'Admin',
+      senderAvatar: 'admin',
       recipient: user._id.toString(),
     });
 
