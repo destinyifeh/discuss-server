@@ -4,48 +4,55 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
-  Put,
   Request,
-  UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 
+import { UploadApiResponse } from 'cloudinary';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto, UpdateCommentDto } from './dto/create-comment.dto';
-
-@Controller('comments')
+@UseGuards(JwtAuthGuard)
+@Controller('comment')
 export class CommentsController {
   constructor(
     private readonly commentService: CommentsService,
     private readonly mediaUploadService: MediaUploadService,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post()
-  @UseInterceptors(FileInterceptor('image', multerConfig))
+  @UseInterceptors(FilesInterceptor('images', 2, multerConfig))
   async createComment(
-    @Body() data: CreateCommentDto,
-    @UploadedFile(AvatarValidationPipe) file: Express.Multer.File,
-    @Request() req,
+    @Body() body: any,
+    @CurrentUser() user: { userId: string },
+    @UploadedFiles() images?: Express.Multer.File[],
   ) {
-    const user = req.user.user;
-    let image: { secure_url: string; public_id: string } | null = null;
-    if (file) {
-      const uploaded = await this.mediaUploadService.uploadImage(file);
-      image = {
-        secure_url: uploaded.secure_url,
-        public_id: uploaded.public_id,
-      };
+    const parsedQuotedComment = body?.quotedComment
+      ? JSON.parse(body.quotedComment)
+      : null;
+
+    const data: CreateCommentDto = {
+      ...body,
+      quotedComment: parsedQuotedComment,
+    };
+    let result: UploadApiResponse[] | null = null;
+    if (images && images?.length > 0) {
+      result = await Promise.all(
+        images.map((f) => this.mediaUploadService.uploadImage(f)),
+      );
+      console.log(result, 'resultttt');
+      console.log(images, 'resultttimagert');
     }
 
-    return this.commentService.create(data, user, image);
+    return this.commentService.create(data, user.userId, result);
   }
 
   @Get('post/:postId')
@@ -54,16 +61,22 @@ export class CommentsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Put(':id/like')
-  async like(@Param('id') commentId: string, @Request() req) {
-    const userId = req.user.userId;
+  @Patch(':id/like')
+  async like(
+    @Param('id') commentId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    const userId = user.userId;
     return this.commentService.like(commentId, userId);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Put(':id/dislike')
-  async dislike(@Param('id') commentId: string, @Request() req) {
-    const userId = req.user.userId;
+  @Patch(':id/dislike')
+  async dislike(
+    @Param('id') commentId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    const userId = user.userId;
     return this.commentService.dislike(commentId, userId);
   }
 
@@ -78,13 +91,19 @@ export class CommentsController {
     return this.commentService.delete(commentId, postId, userId);
   }
 
-  @Put(':id')
-  @UseInterceptors(FileInterceptor('file'))
-  async updateComment(
-    @Param('id') id: string,
+  @Patch('update/:id')
+  @UseInterceptors(FilesInterceptor('images', 2, multerConfig))
+  async updatePost(
+    @Param('id') commentId: string,
     @Body() data: UpdateCommentDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles() images?: Express.Multer.File[],
   ) {
-    return this.commentService.updateComment(id, data, file);
+    let result: UploadApiResponse[] | null = null;
+    if (images && images?.length > 0) {
+      result = await Promise.all(
+        images.map((f) => this.mediaUploadService.uploadImage(f)),
+      );
+    }
+    return this.commentService.updateComment(commentId, data, result);
   }
 }

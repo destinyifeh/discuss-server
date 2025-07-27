@@ -1,13 +1,14 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
-  Put,
-  Request,
+  Query,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -21,7 +22,8 @@ import { MediaUploadService } from '../media-upload/media-upload.service';
 import { CreatePostDto, UpdatePostDto } from './dto/create-post.dto';
 import { PostsService } from './posts.service';
 
-@Controller('post')
+@UseGuards(JwtAuthGuard)
+@Controller('posts')
 export class PostsController {
   constructor(
     private readonly mediaUploadService: MediaUploadService,
@@ -29,35 +31,48 @@ export class PostsController {
   ) {}
 
   @Post()
-  @UseInterceptors(FilesInterceptor('files', 4, multerConfig))
+  @UseInterceptors(FilesInterceptor('images', 4, multerConfig))
   async cratePost(
     @Body() data: CreatePostDto,
-    @UploadedFiles() files: Express.Multer.File[],
     @CurrentUser() user: { userId: string },
+    @UploadedFiles() images?: Express.Multer.File[],
   ) {
     let result: UploadApiResponse[] | null = null;
-    if (files?.length > 0) {
+    if (images && images?.length > 0) {
       result = await Promise.all(
-        files.map((f) => this.mediaUploadService.uploadImage(f)),
+        images.map((f) => this.mediaUploadService.uploadImage(f)),
       );
     }
     return this.postsService.createPost(user.userId, data, result);
   }
 
-  @Put(':id')
-  @UseInterceptors(FilesInterceptor('files', 4, multerConfig))
+  @Get()
+  getPosts(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+  ) {
+    return this.postsService.getPosts({
+      page,
+      limit,
+      search,
+    });
+  }
+
+  @Patch(':id')
+  @UseInterceptors(FilesInterceptor('images', 4, multerConfig))
   async updatePost(
-    @Param('id') id: string,
+    @Param('id') postId: string,
     @Body() data: UpdatePostDto,
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFiles() images?: Express.Multer.File[],
   ) {
     let result: UploadApiResponse[] | null = null;
-    if (files?.length > 0) {
+    if (images && images?.length > 0) {
       result = await Promise.all(
-        files.map((f) => this.mediaUploadService.uploadImage(f)),
+        images.map((f) => this.mediaUploadService.uploadImage(f)),
       );
     }
-    return this.postsService.updatePost(id, data, result);
+    return this.postsService.updatePost(postId, data, result);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -66,22 +81,29 @@ export class PostsController {
     return this.postsService.deletePost(id);
   }
   @UseGuards(JwtAuthGuard)
-  @Post(':id/like')
-  likePost(@Param('id') postId: string, @Request() req) {
-    const userId = req.user.userId;
-    return this.postsService.toggleLike(postId, userId);
+  @Patch(':id/like')
+  likePost(
+    @Param('id') postId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.postsService.toggleLike(postId, user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post(':id/bookmark')
-  bookmarkPost(@Param('id') postId: string, @Request() req) {
-    const userId = req.user.userId;
-    return this.postsService.toggleBookmark(postId, userId);
+  @Patch(':id/bookmark')
+  bookmarkPost(
+    @Param('id') postId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.postsService.toggleBookmark(postId, user.userId);
   }
 
   @Post(':id/view')
-  viewPost(@Param('id') postId: string) {
-    return this.postsService.incrementViews(postId);
+  viewPost(
+    @Param('id') postId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.postsService.incrementViews(postId, user.userId);
   }
 
   @Patch(':id/comments/close')
@@ -99,5 +121,10 @@ export class PostsController {
   @Get(':id')
   async getPost(@Param('id') id: string) {
     return this.postsService.getPostById(id);
+  }
+
+  @Get('/comment-count/:id')
+  async countPostComments(@Param('id') id: string) {
+    return this.postsService.countPostComments(id);
   }
 }

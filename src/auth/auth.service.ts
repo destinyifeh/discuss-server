@@ -14,6 +14,7 @@ import { UploadApiResponse } from 'cloudinary';
 import { randomBytes } from 'crypto';
 import { Response } from 'express';
 import { Model } from 'mongoose';
+import { AccountStatus } from 'src/common/utils/types/user.type';
 import { toSafeUser } from 'src/common/utils/user.mapper';
 import { MailService } from 'src/mail/mail.service';
 import { MailerService } from 'src/mailer/mailer.service';
@@ -115,11 +116,31 @@ export class AuthService {
       .exec();
   }
 
+  private async clearUserStatusHistory(user: any) {
+    if (user.status === AccountStatus.ACTIVE && user.statusHistory?.length) {
+      const lastUnsuspend = user.statusHistory
+        .filter((h: any) => h.action === 'unsuspend' || h.action === 'unban')
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.performedAt).getTime() -
+            new Date(a.performedAt).getTime(),
+        )[0];
+      console.log(lastUnsuspend, 'lastSuspended');
+      if (lastUnsuspend) {
+        const now = new Date();
+        const hoursSince =
+          (now.getTime() - new Date(lastUnsuspend.performedAt).getTime()) /
+          36e5;
+        if (hoursSince >= 48) {
+          user.statusHistory = [];
+          await user.save();
+        }
+      }
+    }
+  }
+
   async validateUser(username: string, pass: string): Promise<any> {
-    const user = await this.userModel
-      .findOne({ username })
-      .lean() // plain JS object (not Mongoose doc)
-      .exec();
+    const user = await this.userModel.findOne({ username }).exec();
 
     if (!user) throw new NotFoundException('User not found');
 
@@ -127,9 +148,9 @@ export class AuthService {
     if (!ok) {
       throw new NotFoundException('Incorrect password');
     }
-
-    const { password, refreshToken, ...safeUser } = user;
-    return safeUser;
+    this.clearUserStatusHistory(user);
+    // const { password, refreshToken, ...safeUser } = user;
+    return user;
   }
 
   async login(user: any, res: Response) {

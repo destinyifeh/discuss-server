@@ -1,49 +1,41 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { CommentImage } from '../dto/create-comment.dto';
+import { QuotedComment, QuotedCommentSchema } from './quoted-comment.schema';
 export type CommentDocument = HydratedDocument<Comment>;
 @Schema({ timestamps: true })
 export class Comment {
-  @Prop({ required: true })
-  postId: string;
-
-  @Prop({ required: true })
-  userId: string;
-
   @Prop({ type: Types.ObjectId, ref: 'Post', required: true })
   post: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  user: Types.ObjectId;
-
-  @Prop()
-  username: string;
-
-  @Prop()
-  avatar: string;
 
   @Prop()
   content: string;
 
+  @Prop()
+  quoteId: string;
+
   @Prop({
-    type: Object,
-    default: null,
+    type: [
+      {
+        secure_url: { type: String, required: true },
+        public_id: { type: String, required: true },
+      },
+    ],
+    default: [],
   })
-  image?: {
-    secure_url: string;
-    public_id: string;
-  } | null;
+  images: CommentImage[];
 
-  @Prop({ default: 0 })
-  likes: number;
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  likedBy: Types.ObjectId[];
 
-  @Prop({ type: [String], default: [] })
-  likedBy: string[];
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  dislikedBy: Types.ObjectId[];
 
-  @Prop({ default: 0 })
-  dislikes: number;
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  commentBy: Types.ObjectId;
 
-  @Prop({ type: [String], default: [] })
-  dislikedBy: string[];
+  @Prop({ default: null, type: QuotedCommentSchema })
+  quotedComment: QuotedComment;
 }
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);

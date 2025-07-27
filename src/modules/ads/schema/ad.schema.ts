@@ -20,7 +20,7 @@ export class Ad {
   @Prop() authorAvatar: string;
 
   /* ---------- main ad info ------------------- */
-  @Prop({ enum: ['Sponsored', 'Banner'], default: 'Sponsored' })
+  @Prop({ enum: ['sponsored', 'banner'], default: 'sponsored' })
   type: string;
 
   @Prop({ required: true }) title: string;

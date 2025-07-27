@@ -6,15 +6,17 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { UploadApiResponse } from 'cloudinary';
-import { Model, Types } from 'mongoose';
+import { Connection, Model, Types } from 'mongoose';
 import { NotificationsService } from 'src/notifications/notifications.service';
 
 import { selectedFields } from 'src/common/utils/user.mapper';
 import { UserResponseDto } from '../../auth/dto/user-response.dto';
 import { GetUsersParams } from '../../auth/dto/user-types.dto';
+import { Comment } from '../comments/schema/comment.schema';
 import { MediaUploadService } from '../media-upload/media-upload.service';
+import { Post } from '../posts/schema/post.schema';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './schemas/user.schema';
 
@@ -24,6 +26,9 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly mediaUploadService: MediaUploadService,
     private readonly notificationService: NotificationsService,
+    @InjectModel(Post.name) private readonly postModel: Model<Post>,
+    @InjectModel(Comment.name) private readonly commentModel: Model<Comment>,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   async getUser(userId: string) {
@@ -234,21 +239,82 @@ export class UsersService {
     };
   }
 
-  async deleteUser(id: string) {
-    try {
-      const result = await this.userModel.deleteOne({ _id: id }).exec();
+  async deleteUser(userId: string) {
+    const session = await this.connection.startSession();
+    session.startTransaction();
 
-      if (result.deletedCount === 0) {
+    try {
+      const user = await this.userModel.findById(userId).session(session);
+      if (!user) {
         throw new NotFoundException('User not found');
       }
 
+      // 1️⃣ Delete user's avatar
+      if (user.avatar_public_id) {
+        await this.mediaUploadService.deleteImage(user.avatar_public_id);
+      }
+
+      // 2️⃣ Get all posts by user
+      const posts = await this.postModel.find({ user: userId }).lean();
+      const postImagePublicIds = posts
+        .flatMap((post) => post.images ?? [])
+        .filter((img) => img?.public_id)
+        .map((img) => img.public_id);
+
+      // 3️⃣ Get all comments by user
+      const comments = await this.commentModel
+        .find({ commentBy: userId })
+        .lean();
+      const commentImagePublicIds = comments
+        .flatMap((comment) => comment.images ?? [])
+        .filter((img) => img?.public_id)
+        .map((img) => img.public_id);
+
+      // 4️⃣ Delete all post images and comment images
+      const allImagePublicIds = [
+        ...postImagePublicIds,
+        ...commentImagePublicIds,
+      ];
+      if (allImagePublicIds.length > 0) {
+        await this.mediaUploadService.deleteImages(allImagePublicIds); // not in session
+      }
+
+      // 5️⃣ Delete posts
+      await this.postModel.deleteMany({ user: userId }, { session });
+
+      // 6️⃣ Remove likes/bookmarks/views/comments from other posts
+      await this.postModel.updateMany(
+        {},
+        {
+          $pull: {
+            likedBy: userId,
+            bookmarkedBy: userId,
+            viewedBy: userId,
+          },
+        },
+        { session },
+      );
+
+      // 7️⃣ Delete comments by user
+      await this.commentModel.deleteMany({ commentBy: userId }, { session });
+
+      // 8️⃣ Delete the user
+      await this.userModel.deleteOne({ _id: userId }, { session });
+
+      await session.commitTransaction();
+
       return {
         code: HttpStatus.OK,
-        message: 'User successfully deleted',
+        message: 'User and all associated data successfully deleted',
       };
     } catch (error) {
-      console.error('Error deleting user:', error);
-      throw new InternalServerErrorException('Failed to delete user');
+      await session.abortTransaction();
+      console.error('Error deleting user and related data:', error);
+      throw new InternalServerErrorException(
+        'Failed to delete user and related data',
+      );
+    } finally {
+      session.endSession();
     }
   }
 

@@ -27,9 +27,13 @@ export class MediaUploadService {
             error: UploadApiErrorResponse | undefined,
             result: UploadApiResponse | undefined,
           ) => {
-            if (error) return reject(new Error(error.message));
-            if (!result)
+            if (error) {
+              console.log(error, 'upload err');
+              return reject(new Error(error.message));
+            }
+            if (!result) {
               return reject(new Error('No response from Cloudinary'));
+            }
             resolve(result);
           },
         )
@@ -56,7 +60,10 @@ export class MediaUploadService {
 
     return new Promise((resolve, reject) => {
       this.cloudinary.api.delete_resources(publicIds, (error, result) => {
-        if (error) return reject(new Error(error.message));
+        if (error) {
+          console.log(error, 'errrorClud');
+          return reject(new Error(error.message));
+        }
         resolve(result as { deleted: Record<string, string> });
       });
     });

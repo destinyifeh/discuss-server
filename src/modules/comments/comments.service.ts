@@ -7,12 +7,17 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
-import { Model } from 'mongoose';
+import { UploadApiResponse } from 'cloudinary';
+import { Model, Types } from 'mongoose';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 import { Post } from '../posts/schema/post.schema';
 import { User } from '../users/schemas/user.schema';
-import { CreateCommentDto, UpdateCommentDto } from './dto/create-comment.dto';
+import {
+  CommentImage,
+  CreateCommentDto,
+  UpdateCommentDto,
+} from './dto/create-comment.dto';
 import { Comment } from './schema/comment.schema';
 
 @Injectable()
@@ -27,79 +32,63 @@ export class CommentsService {
 
   async create(
     data: CreateCommentDto,
-    user: any,
-    image?: { secure_url: string; public_id: string } | null,
+    currentUserId: string,
+    images?: UploadApiResponse[] | null,
   ) {
+    console.log(data, 'dataaa');
     const post = await this.postModel.findById(data.postId);
     if (!post) throw new NotFoundException('Post not found');
     if (post.commentsClosed) {
       throw new ForbiddenException('Comments are closed for this post.');
     }
+
+    const formattedImages: CommentImage[] = Array.isArray(images)
+      ? images.map((img) => ({
+          secure_url: img.secure_url,
+          public_id: img.public_id,
+        }))
+      : [];
     const comment = new this.commentModel({
       ...data,
-      userId: user._id,
-      username: user.username,
-      avatar: user.avatar,
-      image,
-      post: data.postId,
-      user: user,
+      images: formattedImages,
+      post: new Types.ObjectId(data.postId),
+      commentBy: new Types.ObjectId(currentUserId),
     });
-    // Increment commentCount
-    await this.postModel.findByIdAndUpdate(data.postId, {
-      $inc: { commentCount: 1 },
-    });
+
     await comment.save();
 
     return {
-      code: HttpStatus.OK,
+      code: '200',
       message: 'Comment created',
       data: comment,
     };
   }
 
-  async like2(commentId: string, userId: string) {
-    const comment = await this.commentModel.findById(commentId);
-    if (!comment) throw new NotFoundException('Comment not found');
-
-    if (!comment.likedBy.includes(userId)) {
-      comment.likedBy.push(userId);
-      comment.likes++;
-      // remove dislike if present
-      comment.dislikedBy = comment.dislikedBy.filter((id) => id !== userId);
-      comment.dislikes = comment.dislikedBy.length;
-
-      await comment.save();
-    }
-
-    return comment;
-  }
-
   async like(commentId: string, userId: string) {
-    // 1️⃣  Get the comment and its owner
+    // 1️⃣ Fetch the comment (only fields needed for logic)
     const comment = await this.commentModel
       .findById(commentId)
-      .populate('userId', 'username avatar'); // populate owner fields
+      .select('likedBy dislikedBy commentBy');
 
     if (!comment) throw new NotFoundException('Comment not found');
 
-    const alreadyLiked = comment.likedBy.includes(userId);
-
-    /* ---------- 2️⃣  Apply like / unlike logic ------------------- */
+    const alreadyLiked = comment.likedBy.some((id) => id.toString() === userId);
+    console.log(alreadyLiked, 'destoLiked');
+    // 2️⃣ Perform updates
     if (alreadyLiked) {
-      // user is un-liking
-      comment.likedBy = comment.likedBy.filter((id) => id !== userId);
-      comment.likes--;
+      // User is unliking
+      await this.commentModel.findByIdAndUpdate(commentId, {
+        $pull: { likedBy: userId },
+      });
     } else {
-      // user is liking
-      comment.likedBy.push(userId);
-      comment.likes++;
+      // User is liking (add to likedBy, remove from dislikedBy)
+      await this.commentModel.findByIdAndUpdate(commentId, {
+        $addToSet: { likedBy: userId },
+        $pull: { dislikedBy: userId },
+      });
 
-      // remove any previous dislike
-      comment.dislikedBy = comment.dislikedBy.filter((id) => id !== userId);
-      comment.dislikes = comment.dislikedBy.length;
-
-      /* ---------- 3️⃣  Create notification (skip self-like) ------ */
-      if (comment.userId && comment.userId.toString() !== userId) {
+      // 3️⃣ Send notification if not self-like
+      if (comment.commentBy?.toString() !== userId) {
         const liker = await this.userModel.findById(userId).lean();
         if (liker) {
           await this.notificationsService.createNotification({
@@ -107,36 +96,55 @@ export class CommentsService {
             content: 'liked your comment',
             senderName: liker.username,
             senderAvatar: liker.avatar,
-
-            recipient: comment.userId.toString(), // who gets the note
+            recipient: comment.commentBy.toString(),
           });
         }
       }
     }
 
-    await comment.save();
+    // 4️⃣ Get updated like/dislike count
+    const updatedComment = await this.commentModel
+      .findById(commentId)
+      .select('likedBy dislikedBy')
+      .lean();
 
     return {
       liked: !alreadyLiked,
-      likesCount: comment.likes,
-      dislikesCount: comment.dislikes,
+      likesCount: updatedComment?.likedBy?.length ?? 0,
+      dislikesCount: updatedComment?.dislikedBy?.length ?? 0,
     };
   }
 
   async dislike(commentId: string, userId: string) {
-    const comment = await this.commentModel.findById(commentId);
+    const comment = await this.commentModel
+      .findById(commentId)
+      .select('likedBy dislikedBy');
+
     if (!comment) throw new NotFoundException('Comment not found');
 
-    if (!comment.dislikedBy.includes(userId)) {
-      comment.dislikedBy.push(userId);
-      comment.dislikes++;
-      // remove like if present
-      comment.likedBy = comment.likedBy.filter((id) => id !== userId);
-      comment.likes = comment.likedBy.length;
-      await comment.save();
+    const alreadyDisliked = comment.dislikedBy.some(
+      (id) => id.toString() === userId,
+    );
+
+    if (!alreadyDisliked) {
+      // Add to dislikedBy, remove from likedBy
+      await this.commentModel.findByIdAndUpdate(commentId, {
+        $addToSet: { dislikedBy: userId },
+        $pull: { likedBy: userId },
+      });
     }
 
-    return comment;
+    // Fetch updated counts
+    const updated = await this.commentModel
+      .findById(commentId)
+      .select('likedBy dislikedBy')
+      .lean();
+
+    return {
+      disliked: !alreadyDisliked,
+      likesCount: updated?.likedBy?.length ?? 0,
+      dislikesCount: updated?.dislikedBy?.length ?? 0,
+    };
   }
 
   async findByPost(postId: string) {
@@ -147,13 +155,13 @@ export class CommentsService {
     const comment = await this.commentModel.findById(commentId);
     if (!comment) throw new NotFoundException('Comment not found');
 
-    if (comment.userId.toString() !== userId) {
+    if (comment.commentBy.toString() !== userId) {
       throw new ForbiddenException(
         'You are not authorized to delete this comment',
       );
     }
 
-    if (comment.postId.toString() !== postId) {
+    if (comment.post.toString() !== postId) {
       throw new BadRequestException(
         'Comment does not belong to the specified post',
       );
@@ -171,43 +179,44 @@ export class CommentsService {
   }
 
   // comment.service.ts
+
   async updateComment(
-    commentId: string,
+    id: string,
     data: UpdateCommentDto,
-    file?: Express.Multer.File,
-  ): Promise<any> {
-    const comment = await this.commentModel.findById(commentId);
+    newImages?: UploadApiResponse[] | null,
+  ) {
+    const comment = await this.commentModel.findById(id);
     if (!comment) throw new NotFoundException('Comment not found');
 
-    // Handle image logic
-    let image = comment.image ?? null;
-
-    // If new file is uploaded, replace image
-    if (file) {
-      if (image?.public_id) {
-        await this.mediaUploadService.deleteImages([image.public_id]);
-      }
-      const uploaded = await this.mediaUploadService.uploadImage(file);
-      image = {
-        secure_url: uploaded.secure_url,
-        public_id: uploaded.public_id,
-      };
+    console.log(data, 'the removaldata');
+    // Delete removed images from cloud
+    if (data.removedImageIds && data.removedImageIds.length > 0) {
+      await this.mediaUploadService.deleteImages(data.removedImageIds);
     }
 
-    // If keepImage is false and no new file, remove old image
-    if (!file && data.keepImage === false && image?.public_id) {
-      await this.mediaUploadService.deleteImages([image.public_id]);
-      image = null;
-    }
+    // Prepare new image data
+    const uploadedImages: CommentImage[] =
+      newImages?.map((res) => ({
+        secure_url: res.secure_url,
+        public_id: res.public_id,
+      })) ?? [];
 
+    // Filter out removed originals
+    const remainingImages = comment.images.filter(
+      (img) => !data.removedImageIds?.includes(img.public_id),
+    );
+
+    // Final image array
+    comment.images = [...remainingImages, ...uploadedImages];
+
+    // Update other fields
     comment.content = data.content ?? comment.content;
-    comment.image = image;
 
     await comment.save();
 
     return {
-      code: HttpStatus.OK,
-      message: 'Comment updated successfully',
+      code: '200',
+      message: 'Comment updated',
       data: comment,
     };
   }

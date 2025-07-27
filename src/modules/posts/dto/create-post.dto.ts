@@ -1,11 +1,4 @@
-import {
-  IsArray,
-  IsBoolean,
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUrl,
-} from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 
 export interface PostImage {
   secure_url: string;
@@ -14,43 +7,16 @@ export interface PostImage {
 
 export class CreatePostDto {
   @IsString()
-  userId: string;
+  title: string;
 
   @IsString()
-  username: string;
-
-  @IsString()
-  sectionId: string;
-
-  @IsString()
+  @MinLength(20, {
+    message: 'Content must be at least 20 characters long',
+  })
   content: string;
 
   @IsString()
-  section: string;
-
-  @IsInt()
-  likes: number;
-
-  @IsInt()
-  reposts: number;
-
-  @IsInt()
-  bookmarks: number;
-
-  @IsInt()
-  comments: number;
-
-  @IsInt()
-  views: number;
-
-  @IsArray()
-  @IsString({ each: true })
-  likedBy: string[];
-
-  @IsArray()
-  @IsUrl(undefined, { each: true })
-  @IsOptional()
-  images?: string[];
+  section: SectionName;
 
   @IsOptional()
   @IsBoolean()
@@ -60,9 +26,26 @@ export class CreatePostDto {
 export class UpdatePostDto {
   title?: string;
   content?: string;
-  section?: string;
-  sectionId?: string;
-  commentsClosed?: boolean;
+  section?: SectionName;
+  removedImageIds?: string[];
+}
 
-  keepImagePublicIds?: string[]; // 👈 important for determining which to retain
+export type SectionName =
+  | 'Technology'
+  | 'Travel'
+  | 'Food'
+  | 'Sports'
+  | 'Politics'
+  | 'Education'
+  | 'Religion'
+  | 'Romance'
+  | 'Jobs'
+  | 'News'
+  | 'Entertainment'
+  | 'Celebrity';
+
+export interface GetPostsParams {
+  page: number;
+  limit: number;
+  search?: string;
 }

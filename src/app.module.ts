@@ -8,6 +8,7 @@ import { MailModule } from './mail/mail.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AdsModule } from './modules/ads/ads.module';
 import { FeedsModule } from './modules/feeds/feeds.module';
+import { MediaUploadModule } from './modules/media-upload/media-upload.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { UsersModule } from './modules/users/users.module';
@@ -26,6 +27,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     PostsModule,
     FeedsModule,
     MailModule,
+    MediaUploadModule,
     // MongooseModule.forRootAsync({
     //   imports: [ConfigModule],
     //   inject: [ConfigService],

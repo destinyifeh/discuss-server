@@ -9,21 +9,6 @@ export class Post {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   user: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  author: Types.ObjectId;
-
-  @Prop({ required: true })
-  username: string;
-
-  @Prop()
-  avatar: string;
-
-  @Prop({ default: false })
-  verified: boolean;
-
-  @Prop()
-  sectionId: string;
-
   @Prop()
   section: string;
 
@@ -33,26 +18,17 @@ export class Post {
   @Prop({ required: true })
   content: string;
 
-  @Prop({ default: 0 })
-  likes: number;
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  likedBy: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  bookmarkedBy: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  viewedBy: Types.ObjectId[];
 
   @Prop({ default: 0 })
-  reposts: number;
-
-  @Prop({ default: 0 })
-  bookmarks: number;
-
-  @Prop({ default: 0 })
-  comments: number;
-
-  @Prop({ default: 0 })
-  views: number;
-
-  @Prop({ type: [String], default: [] })
-  likedBy: string[];
-
-  @Prop({ type: [String], default: [] })
-  bookmarkedBy: string[];
+  viewCount: number;
 
   @Prop({
     type: [
@@ -67,9 +43,6 @@ export class Post {
 
   @Prop({ default: false })
   commentsClosed: boolean;
-
-  @Prop({ default: 0 })
-  commentCount: number;
 }
 
 export const PostSchema = SchemaFactory.createForClass(Post);

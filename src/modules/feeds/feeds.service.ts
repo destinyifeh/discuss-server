@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Ad } from '../ads/schema/ad.schema';
 import { Comment } from '../comments/schema/comment.schema';
 import { Post } from '../posts/schema/post.schema';
@@ -14,31 +14,91 @@ export class FeedsService {
     @InjectModel(Comment.name) private readonly commentModel: Model<Comment>,
   ) {}
 
+  async countTotalPosts(search?: string, section?: string): Promise<number> {
+    const query: any = {};
+
+    if (search) {
+      query.$or = [
+        { content: { $regex: search, $options: 'i' } },
+        { section: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (section) {
+      query.section = section;
+    }
+
+    return this.postModel.countDocuments(query).exec();
+  }
+
+  async countTotalComments(postId: string): Promise<number> {
+    const objectId = new Types.ObjectId(postId);
+    return this.commentModel.countDocuments({ post: objectId }).exec();
+  }
+
   // --------------------- helpers ------------------------------------------- //
-  private async fetchPosts({ section, page, limit }: FeedQuery) {
-    const filter = section ? { section } : {};
+  private async fetchPosts({
+    section,
+    page,
+    limit,
+    search,
+  }: {
+    section?: string;
+    page: number;
+    limit: number;
+    search?: string;
+  }) {
+    const skip = (page - 1) * limit;
+    const query: any = {};
+
+    if (section) {
+      query.section = section;
+    }
+
+    if (search) {
+      query.$or = [
+        { content: { $regex: search, $options: 'i' } },
+        { title: { $regex: search, $options: 'i' } },
+      ];
+    }
+
     return this.postModel
-      .find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
+      .find(query)
+      .populate('user', 'username avatar')
+      .skip(skip)
       .limit(limit)
+      .sort({ createdAt: -1 })
       .lean();
   }
 
-  private async fetchActiveAds(section?: string) {
-    const filter: any = { status: 'active', type: 'Sponsored' };
-    if (section) filter.section = section;
+  private async fetchActiveAds(arg?: FeedQuery) {
+    const filter: any = { status: 'active', type: 'sponsored' };
+    if (arg?.section) {
+      filter.section = arg.section;
+    }
+    if (arg?.adPlan === 'enterprise') {
+      filter.plan = { $in: ['enterprise', 'professional'] };
+    } else if (arg?.adPlan) {
+      filter.plan = arg.adPlan;
+    }
     return this.adModel.find(filter).lean();
   }
 
-  private async fetchComments({ section, page, limit }: FeedQuery) {
-    const filter = section ? { section } : {};
-    return this.commentModel
-      .find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
+  private async fetchComments({ page, limit, postId }: FeedQuery) {
+    console.log(postId, 'postIddd');
+    const objectId = new Types.ObjectId(postId);
+    return (
+      this.commentModel
+        .find({ post: objectId })
+        .populate('commentBy', 'username avatar')
+        .populate('post')
+        //.populate('likedBy', 'username avatar')
+        // .populate('dislikedBy', 'username avatar')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean()
+    );
   }
 
   // --------------------- Unified buildFeed ---------------------------------- //
@@ -46,10 +106,11 @@ export class FeedsService {
     args: FeedQuery & {
       mode: 'random' | 'after5' | 'pattern';
       pattern?: string;
+      search?: string;
     },
   ) {
     const posts = await this.fetchPosts(args);
-    const ads = await this.fetchActiveAds(args.section);
+    const ads = await this.fetchActiveAds(args);
 
     switch (args.mode) {
       case 'random':
@@ -70,7 +131,7 @@ export class FeedsService {
     },
   ) {
     const posts = await this.fetchComments(args);
-    const ads = await this.fetchActiveAds(args.section);
+    const ads = await this.fetchActiveAds(args);
 
     switch (args.mode) {
       case 'random':
@@ -85,13 +146,13 @@ export class FeedsService {
 
   async randomFeed(args: FeedQuery) {
     const posts = await this.fetchPosts(args);
-    const ads = await this.fetchActiveAds(args.section);
+    const ads = await this.fetchActiveAds(args);
     return this.randomMerge(posts, ads);
   }
 
   async afterFiveFeed(args: FeedQuery) {
     const posts = await this.fetchPosts(args);
-    const ads = await this.fetchActiveAds(args.section);
+    const ads = await this.fetchActiveAds(args);
     return this.afterFiveMerge(posts, ads);
   }
 

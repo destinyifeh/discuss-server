@@ -2,12 +2,14 @@ import {
   Controller,
   DefaultValuePipe,
   Get,
+  Param,
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
+import { AdPlan } from './dto/feeds.dto';
 import { FeedsService } from './feeds.service';
 
-@Controller('feed')
+@Controller('feeds')
 export class FeedsController {
   constructor(private readonly feedService: FeedsService) {}
 
@@ -27,10 +29,44 @@ export class FeedsController {
     @Query('mode') mode: 'random' | 'after5' | 'pattern' = 'after5',
     @Query('section') section?: string,
     @Query('pattern') pattern?: string, // only for mode=pattern
+    @Query('search') search?: string,
+    @Query('adPlan') adPlan?: AdPlan,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
   ) {
-    return this.feedService.buildFeed({ mode, section, page, limit, pattern });
+    // return this.feedService.buildFeed({
+    //   mode,
+    //   section,
+    //   page,
+    //   limit,
+    //   pattern,
+    //   search,
+    // });
+
+    const posts = await this.feedService.buildFeed({
+      mode,
+      section,
+      page,
+      limit,
+      pattern,
+      search,
+      adPlan,
+    });
+    const total = await this.feedService.countTotalPosts(search, section); // You need to implement this logic
+
+    return {
+      code: '200',
+      message: 'Posts retrieved successfully',
+      data: {
+        posts,
+        pagination: {
+          totalItems: total,
+          page,
+          pages: Math.ceil(total / limit),
+          limit,
+        },
+      },
+    };
   }
 
   // Legacy endpoints kept for backward‑compatibility ----------------------- //
@@ -62,21 +98,38 @@ export class FeedsController {
     });
   }
 
-  @Get('comments')
+  @Get('comments/:postId')
   async unifiedCommentFeed(
+    @Param('postId') postId: string,
     @Query('mode') mode: 'random' | 'after5' | 'pattern' = 'after5',
-    @Query('section') section?: string,
+    @Query('adPlan') adPlan?: AdPlan,
     @Query('pattern') pattern?: string, // only for mode=pattern
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
   ) {
-    return this.feedService.buildCommentFeed({
+    const comments = await this.feedService.buildCommentFeed({
       mode,
-      section,
+      adPlan,
       page,
       limit,
       pattern,
+      postId,
     });
+    const total = await this.feedService.countTotalComments(postId); // You need to implement this logic
+
+    return {
+      code: '200',
+      message: 'Comments retrieved successfully',
+      data: {
+        comments,
+        pagination: {
+          totalItems: total,
+          page,
+          pages: Math.ceil(total / limit),
+          limit,
+        },
+      },
+    };
   }
 
   /**
