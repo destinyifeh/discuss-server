@@ -19,7 +19,6 @@ export function toSafeUser(user: UserDocument) {
     banReason: user.banReason,
     suspendedUntil: user.suspendedUntil,
     suspensionReason: user.suspensionReason,
-    warnings: user.warnings,
     googleId: user.googleId,
     createdAt: user.createdAt.toISOString(),
     gender: user.gender,

@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
+import { ReportType } from 'src/common/utils/types/report.type';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { User } from '../users/schemas/user.schema';
+import { CreateReportDto } from './dto/create-report.dto';
 import { Report } from './schema/report.schema';
 
 @Injectable()
@@ -13,106 +15,143 @@ export class ReportsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async createReport(
-    targetType: Report['targetType'],
-    targetId: string,
-    reporterId: string,
-    reason: string,
-    extra?: Partial<Report>,
-  ) {
-    return this.reportModel.create({
-      targetType,
-      targetId,
-      reporterId,
-      reason,
-      ...extra,
+  async reportPost(data: CreateReportDto) {
+    const report = await this.reportModel.create({
+      type: ReportType.POST,
+      ...data,
+      post: new Types.ObjectId(data.post),
+      reportedBy: new Types.ObjectId(data.reportedBy),
     });
+    return {
+      code: '200',
+      message: 'Post has been reported',
+      report: report,
+    };
+  }
+  async reportComment(data: CreateReportDto) {
+    const report = await this.reportModel.create({
+      type: ReportType.COMMENT,
+      ...data,
+      comment: new Types.ObjectId(data.comment),
+      reportedBy: new Types.ObjectId(data.reportedBy),
+    });
+
+    return {
+      code: '200',
+      message: 'Comment has been reported',
+      report: report,
+    };
+  }
+  async reportAd(data: CreateReportDto) {
+    const report = await this.reportModel.create({
+      type: ReportType.AD,
+      ...data,
+      ad: new Types.ObjectId(data.ad),
+      reportedBy: new Types.ObjectId(data.reportedBy),
+    });
+
+    return {
+      code: '200',
+      message: 'Ad has been reported',
+      report: report,
+    };
+  }
+  async reportUser(data: CreateReportDto) {
+    const report = await this.reportModel.create({
+      type: ReportType.USER,
+      ...data,
+      user: new Types.ObjectId(data.user),
+      reportedBy: new Types.ObjectId(data.reportedBy),
+    });
+
+    return {
+      code: '200',
+      message: 'User has been reported',
+      report: report,
+    };
   }
 
-  // Convenience wrappers
-  reportPost(postId: string, reporterId: string, reason: string) {
-    return this.createReport('post', postId, reporterId, reason);
-  }
-  reportComment(commentId: string, reporterId: string, reason: string) {
-    return this.createReport('comment', commentId, reporterId, reason);
-  }
-  reportAd(adId: string, reporterId: string, reason: string) {
-    return this.createReport('ad', adId, reporterId, reason);
-  }
-  reportUser(userId: string, reporterId: string, reason: string) {
-    return this.createReport('user', userId, reporterId, reason);
-  }
-
-  /* Admin */
-  async listOpenReports() {
-    return this.reportModel.find({ status: 'open' }).sort({ createdAt: -1 });
+  async reportAbuse(data: CreateReportDto) {
+    const report = await this.reportModel.create({
+      type: ReportType.ABUSE,
+      ...data,
+      reportedBy: new Types.ObjectId(data.reportedBy),
+    });
+    return {
+      code: '200',
+      message: 'Successfully reported',
+      report: report,
+    };
   }
 
-  async closeReport(id: string, adminNote: string) {
-    return this.reportModel.findByIdAndUpdate(
-      id,
-      { status: 'closed', adminNote, resolvedAt: new Date() },
-      { new: true },
-    );
+  async getReports(params: { page: number; limit: number; search?: string }) {
+    const { page, limit, search } = params;
+
+    const skip = (page - 1) * limit;
+
+    const query: any = {};
+
+    if (search) {
+      query.$or = [
+        { reason: { $regex: search, $options: 'i' } },
+        { note: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const [reports, total] = await Promise.all([
+      this.reportModel
+        .find(query)
+        .populate('reportedBy', 'avatar username')
+        .populate('post')
+        .populate('comment')
+        .populate('ad')
+        .populate('user')
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec(),
+      this.reportModel.countDocuments(query),
+    ]);
+
+    console.log(reports, 'reportooo');
+    return {
+      code: '200',
+      message: 'Reports retrieved successfully',
+      data: {
+        reports,
+        pagination: {
+          totalItems: total,
+          page: page,
+          pages: Math.ceil(total / limit),
+          limit: limit,
+        },
+      },
+    };
   }
 
-  async reportAbuse(
-    reporterId: string,
-    reason: string,
-    abuseCategory?: string,
-    isAnonymous = false,
-  ) {
-    return this.createReport(
-      'abuse',
-      reporterId, // placeholder targetId
-      reporterId,
-      reason,
-      { abuseCategory, isAnonymous },
-    );
-  }
+  async resolveWarning(id: string) {
+    const deleted = await this.reportModel.findByIdAndDelete(id);
 
-  //   async warnUser(userId: string, warningText: string) {
-  //     await this.createReport(
-  //       'user',
-  //       userId,
-  //       userId, // reporterId = same user (placeholder)
-  //       warningText,
-  //       { status: 'warned' },
-  //     );
-  //   }
+    if (!deleted) {
+      return { message: 'No warning found with that ID', code: '404' };
+    }
 
-  async resolveWarning(userId: string, index: number, adminNote?: string) {
-    const user = await this.userModel.findById(userId);
-    if (!user || !user.warnings?.[index])
-      throw new NotFoundException('Warning not found');
-
-    user.warnings[index].resolved = true;
-    user.warnings[index].resolvedAt = new Date();
-    user.warnings[index].adminNote = adminNote;
-    await user.save();
-
-    return { message: 'Warning resolved' };
+    return { message: 'Warning resolved', code: '200' };
   }
 
   /** Warn a user and notify them */
-  async warnUser(userId: string, reason: string) {
-    const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException('User not found');
-
-    // append to warnings array (create if missing)
-    user.warnings = user.warnings ?? [];
-    user.warnings.push({ reason, issuedAt: new Date(), resolved: false });
-    await user.save();
+  async warn(targetUserId: string, adminUserId: string, message: string) {
+    //const user = await this.userModel.findById(adminUserId);
 
     // notify
     await this.notificationsService.createNotification({
       type: 'warning',
-      content: reason,
+      content: message,
       senderName: 'Admin',
-      senderAvatar: 'admin',
-      recipient: user._id.toString(),
+      recipient: targetUserId.toString(),
     });
 
-    return { message: 'Warning issued' };
+    return { code: '200', message: 'Warning issued' };
   }
 }

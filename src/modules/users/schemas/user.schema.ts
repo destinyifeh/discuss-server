@@ -87,26 +87,6 @@ export class User {
 
   @Prop({ type: Date, default: Date.now })
   createdAt: Date;
-
-  @Prop({
-    type: [
-      {
-        reason: String,
-        issuedAt: Date,
-        resolved: Boolean,
-        resolvedAt: Date,
-        adminNote: String,
-      },
-    ],
-    default: [],
-  })
-  warnings: {
-    reason: string;
-    issuedAt: Date;
-    resolved: boolean;
-    resolvedAt?: Date;
-    adminNote?: string;
-  }[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

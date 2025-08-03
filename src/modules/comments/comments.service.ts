@@ -132,6 +132,11 @@ export class CommentsService {
         $addToSet: { dislikedBy: userId },
         $pull: { likedBy: userId },
       });
+    } else {
+      // User is liking (add to likedBy, remove from dislikedBy)
+      await this.commentModel.findByIdAndUpdate(commentId, {
+        $pull: { dislikedBy: userId },
+      });
     }
 
     // Fetch updated counts
@@ -168,9 +173,9 @@ export class CommentsService {
     }
 
     await this.commentModel.deleteOne({ _id: commentId }).exec();
-    await this.postModel.findByIdAndUpdate(postId, {
-      $inc: { commentCount: -1 },
-    });
+    // await this.postModel.findByIdAndUpdate(postId, {
+    //   $inc: { commentCount: -1 },
+    // });
 
     return {
       code: HttpStatus.OK,

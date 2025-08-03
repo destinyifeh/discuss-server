@@ -1,99 +1,123 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
+  Delete,
   Get,
   Param,
-  Patch,
+  ParseIntPipe,
   Post,
-  Request,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CreateReportDto } from './dto/create-report.dto';
 import { ReportsService } from './reports.service';
 
-@Controller()
+@Controller('report')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
+  @Get()
+  getReports(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+  ) {
+    return this.reportsService.getReports({ page, limit, search });
+  }
+
   @UseGuards(JwtAuthGuard)
-  @Post('posts/:id/report')
+  @Post('post/:id')
   reportPost(
     @Param('id') postId: string,
-    @Request() req,
+    @CurrentUser() user: { userId: string },
     @Body() dto: CreateReportDto,
   ) {
-    const user = req.user.userId;
-    return this.reportsService.reportPost(postId, user, dto.reason);
+    const body: CreateReportDto = {
+      ...dto,
+      post: postId,
+      reportedBy: user.userId,
+      reason: dto.reason,
+    };
+    return this.reportsService.reportPost(body);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('comments/:id/report')
+  @Post('comment/:id')
   reportComment(
     @Param('id') commentId: string,
-    @Request() req,
+    @CurrentUser() user: { userId: string },
     @Body() dto: CreateReportDto,
   ) {
-    const user = req.user.userId;
-    return this.reportsService.reportComment(commentId, user, dto.reason);
+    const body: CreateReportDto = {
+      ...dto,
+      comment: commentId,
+      reportedBy: user.userId,
+      reason: dto.reason,
+    };
+    return this.reportsService.reportComment(body);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('ads/:id/report')
+  @Post('ad/:id')
   reportAd(
     @Param('id') adId: string,
-    @Request() req,
+    @CurrentUser() user: { userId: string },
     @Body() dto: CreateReportDto,
   ) {
-    const user = req.user.userId;
-    return this.reportsService.reportAd(adId, user, dto.reason);
+    const body: CreateReportDto = {
+      ...dto,
+      ad: adId,
+      reportedBy: user.userId,
+      reason: dto.reason,
+    };
+    return this.reportsService.reportAd(body);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('users/:id/report')
+  @Post('user/:id')
   reportUser(
     @Param('id') targetUserId: string,
-    @Request() req,
+    @CurrentUser() user: { userId: string },
     @Body() dto: CreateReportDto,
   ) {
-    const user = req.user.userId;
-    return this.reportsService.reportUser(targetUserId, user, dto.reason);
+    const body: CreateReportDto = {
+      ...dto,
+      user: targetUserId,
+      reportedBy: user.userId,
+      reason: dto.reason,
+    };
+    return this.reportsService.reportUser(body);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('report-abuse')
-  reportAbuse(@Request() req, @Body() dto: CreateReportDto) {
-    const user = req.user.userId;
-    return this.reportsService.reportAbuse(
-      user,
-      dto.reason,
-      dto.abuseCategory,
-      dto.isAnonymous,
-    );
-  }
-
-  @Post('users/:id/warn')
-  warn(@Param('id') userId: string, @Body('reason') reason: string) {
-    return this.reportsService.warnUser(userId, reason);
-  }
-
-  @Patch('users/:id/warnings/:index/resolve')
-  resolveWarn(
-    @Param('id') userId: string,
-    @Param('index') index: number,
-    @Body('note') note?: string,
+  @Post('abuse')
+  reportAbuse(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: CreateReportDto,
   ) {
-    return this.reportsService.resolveWarning(userId, +index, note);
+    const body: CreateReportDto = {
+      ...dto,
+      reportedBy: user.userId,
+      reason: dto.reason,
+    };
+    return this.reportsService.reportAbuse(body);
   }
 
-  /* —— Reports —— */
-  @Get('reports')
-  listReports() {
-    return this.reportsService.listOpenReports();
+  @Post(':userId/warn')
+  @UseGuards(JwtAuthGuard)
+  warn(
+    @Param('userId') userId: string,
+    @Body('message') message: string,
+    @CurrentUser() currentUser: { userId: string },
+  ) {
+    return this.reportsService.warn(userId, currentUser.userId, message);
   }
 
-  @Patch('reports/:id/close')
-  closeReport(@Param('id') id: string, @Body('note') note: string) {
-    return this.reportsService.closeReport(id, note);
+  @Delete(':reportId/resolve')
+  resolveWarn(@Param('reportId') reportId: string) {
+    return this.reportsService.resolveWarning(reportId);
   }
 }

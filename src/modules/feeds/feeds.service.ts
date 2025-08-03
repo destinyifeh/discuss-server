@@ -42,17 +42,24 @@ export class FeedsService {
     page,
     limit,
     search,
+    onlyBookmarked,
+    theCurrentUserId,
   }: {
     section?: string;
     page: number;
     limit: number;
     search?: string;
+    onlyBookmarked?: boolean;
+    theCurrentUserId: string;
   }) {
     const skip = (page - 1) * limit;
     const query: any = {};
 
     if (section) {
       query.section = section;
+    }
+    if (onlyBookmarked && theCurrentUserId) {
+      query.bookmarkedBy = theCurrentUserId;
     }
 
     if (search) {

@@ -18,8 +18,13 @@ import { UploadApiResponse } from 'cloudinary';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { multerConfig } from 'src/config/multer.config';
+import { RolesGuard } from '../admin/guards/role.gurad';
 import { MediaUploadService } from '../media-upload/media-upload.service';
-import { CreatePostDto, UpdatePostDto } from './dto/create-post.dto';
+import {
+  CreatePostDto,
+  UpdatePostDto,
+  UserPostType,
+} from './dto/create-post.dto';
 import { PostsService } from './posts.service';
 
 @UseGuards(JwtAuthGuard)
@@ -46,13 +51,82 @@ export class PostsController {
     return this.postsService.createPost(user.userId, data, result);
   }
 
-  @Get()
-  getPosts(
+  @Get('user-posts')
+  getCurrentUserPosts(
+    @CurrentUser() user: { userId: string },
+    @Query('type') type: UserPostType,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('search') search?: string,
   ) {
-    return this.postsService.getPosts({
+    const userId = user.userId;
+    return this.postsService.getCurrentUserPosts({
+      userId,
+      type,
+      page,
+      limit,
+      search,
+    });
+  }
+
+  @Get('posts-with-comment-count')
+  async getPostsWithCommentCount(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+    @Query('section') section?: string,
+  ) {
+    return this.postsService.getPaginatedPostsWithCommentCount(
+      page,
+      limit,
+      search,
+      section,
+    );
+  }
+
+  @Get('likes')
+  getCurrentUserPostLikes(
+    @CurrentUser() user: { userId: string },
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+  ) {
+    const userId = user.userId;
+    return this.postsService.getCurrentUserPostLikes({
+      userId,
+      page,
+      limit,
+      search,
+    });
+  }
+
+  @Get('replies')
+  getCurrentUserPostReplies(
+    @CurrentUser() user: { userId: string },
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+  ) {
+    const userId = user.userId;
+    return this.postsService.getCurrentUserPostReplies({
+      userId,
+      page,
+      limit,
+      search,
+    });
+  }
+
+  @Get('user-posts/:id')
+  getUserPosts(
+    @Param('id') userId: string,
+    @Query('type') type: UserPostType,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+  ) {
+    return this.postsService.getUserPosts({
+      userId,
+      type,
       page,
       limit,
       search,
@@ -77,8 +151,11 @@ export class PostsController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async deletePost(@Param('id') id: string) {
-    return this.postsService.deletePost(id);
+  async deletePost(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; role: string },
+  ) {
+    return this.postsService.deletePost(id, user.userId, user.role);
   }
   @UseGuards(JwtAuthGuard)
   @Patch(':id/like')
@@ -106,16 +183,10 @@ export class PostsController {
     return this.postsService.incrementViews(postId, user.userId);
   }
 
-  @Patch(':id/comments/close')
-  @UseGuards(JwtAuthGuard)
-  async closeComments(@Param('id') postId: string) {
-    return this.postsService.toggleComments(postId, true);
-  }
-
-  @Patch(':id/comments/open')
-  @UseGuards(JwtAuthGuard)
-  async openComments(@Param('id') postId: string) {
-    return this.postsService.toggleComments(postId, false);
+  @Patch(':postId/close-comment')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async closeComments(@Param('postId') postId: string) {
+    return this.postsService.toggleComments(postId);
   }
 
   @Get(':id')
@@ -123,7 +194,7 @@ export class PostsController {
     return this.postsService.getPostById(id);
   }
 
-  @Get('/comment-count/:id')
+  @Get('comment-count/:id')
   async countPostComments(@Param('id') id: string) {
     return this.postsService.countPostComments(id);
   }

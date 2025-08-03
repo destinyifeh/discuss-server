@@ -47,6 +47,16 @@ export class AdminController {
     return this.adminService.getUserDistributionAndStats();
   }
 
+  @Get('post-stats')
+  async getPostStats() {
+    return this.adminService.getPostStats();
+  }
+
+  @Get('section-post-comment-stats')
+  async getSectionPostCommentStats() {
+    return this.adminService.getSectionPostCommentStats();
+  }
+
   @Get('users')
   async getPaginatedUsers(
     @Query('search') search: string,

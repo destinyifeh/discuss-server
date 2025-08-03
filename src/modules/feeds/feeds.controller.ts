@@ -5,10 +5,13 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AdPlan } from './dto/feeds.dto';
 import { FeedsService } from './feeds.service';
-
+@UseGuards(JwtAuthGuard)
 @Controller('feeds')
 export class FeedsController {
   constructor(private readonly feedService: FeedsService) {}
@@ -26,6 +29,7 @@ export class FeedsController {
    */
   @Get()
   async unifiedFeed(
+    @CurrentUser() user: { userId: string },
     @Query('mode') mode: 'random' | 'after5' | 'pattern' = 'after5',
     @Query('section') section?: string,
     @Query('pattern') pattern?: string, // only for mode=pattern
@@ -33,6 +37,7 @@ export class FeedsController {
     @Query('adPlan') adPlan?: AdPlan,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
+    @Query('onlyBookmarked') onlyBookmarked = false,
   ) {
     // return this.feedService.buildFeed({
     //   mode,
@@ -42,7 +47,7 @@ export class FeedsController {
     //   pattern,
     //   search,
     // });
-
+    const theCurrentUserId = user.userId;
     const posts = await this.feedService.buildFeed({
       mode,
       section,
@@ -51,6 +56,8 @@ export class FeedsController {
       pattern,
       search,
       adPlan,
+      onlyBookmarked,
+      theCurrentUserId,
     });
     const total = await this.feedService.countTotalPosts(search, section); // You need to implement this logic
 
@@ -72,11 +79,14 @@ export class FeedsController {
   // Legacy endpoints kept for backward‑compatibility ----------------------- //
   @Get('random')
   random(
+    @CurrentUser() user: { userId: string },
     @Query('section') s?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) p = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) l = 20,
   ) {
+    const theCurrentUserId = user.userId;
     return this.feedService.buildFeed({
+      theCurrentUserId,
       mode: 'random',
       section: s,
       page: p,
@@ -86,11 +96,14 @@ export class FeedsController {
 
   @Get('after5')
   after5(
+    @CurrentUser() user: { userId: string },
     @Query('section') s?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) p = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) l = 20,
   ) {
+    const theCurrentUserId = user.userId;
     return this.feedService.buildFeed({
+      theCurrentUserId,
       mode: 'after5',
       section: s,
       page: p,
@@ -100,6 +113,7 @@ export class FeedsController {
 
   @Get('comments/:postId')
   async unifiedCommentFeed(
+    @CurrentUser() user: { userId: string },
     @Param('postId') postId: string,
     @Query('mode') mode: 'random' | 'after5' | 'pattern' = 'after5',
     @Query('adPlan') adPlan?: AdPlan,
@@ -107,7 +121,9 @@ export class FeedsController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
   ) {
+    const theCurrentUserId = user.userId;
     const comments = await this.feedService.buildCommentFeed({
+      theCurrentUserId,
       mode,
       adPlan,
       page,
@@ -141,19 +157,33 @@ export class FeedsController {
    */
   @Get('random')
   getRandomInterleave(
+    @CurrentUser() user: { userId: string },
     @Query('section') section?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
   ) {
-    return this.feedService.randomFeed({ section, page, limit });
+    const theCurrentUserId = user.userId;
+    return this.feedService.randomFeed({
+      section,
+      page,
+      limit,
+      theCurrentUserId,
+    });
   }
 
   @Get('after5')
   getFixedInterleave(
+    @CurrentUser() user: { userId: string },
     @Query('section') section?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
   ) {
-    return this.feedService.afterFiveFeed({ section, page, limit });
+    const theCurrentUserId = user.userId;
+    return this.feedService.afterFiveFeed({
+      section,
+      page,
+      limit,
+      theCurrentUserId,
+    });
   }
 }

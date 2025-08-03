@@ -48,4 +48,12 @@ export interface GetPostsParams {
   page: number;
   limit: number;
   search?: string;
+  userId: string;
+}
+
+export enum UserPostType {
+  POSTS = 'posts',
+  REPLIES = 'replies',
+  LIKES = 'likes',
+  MENTIONS = 'mentions',
 }

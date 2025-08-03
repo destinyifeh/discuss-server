@@ -325,4 +325,86 @@ export class AdminService {
 
     return { code: '200', newRole: user.role, message: 'Success' };
   }
+
+  async getSectionPostCommentStats() {
+    const results = await this.postModel.aggregate([
+      // Step 1: Lookup comments for each post
+      {
+        $lookup: {
+          from: 'comments',
+          localField: '_id',
+          foreignField: 'post',
+          as: 'comments',
+        },
+      },
+      // Step 2: Group by section
+      {
+        $group: {
+          _id: '$section',
+          posts: { $sum: 1 },
+          comments: { $sum: { $size: '$comments' } },
+        },
+      },
+      // Step 3: Rename fields to match frontend format
+      {
+        $project: {
+          _id: 0,
+          name: '$_id',
+          posts: 1,
+          comments: 1,
+        },
+      },
+      // Optional: Sort by number of posts or comments
+      { $sort: { posts: -1 } },
+    ]);
+
+    return {
+      code: '200',
+      message: 'Section stats retrieved',
+      data: results,
+    };
+  }
+
+  async getPostStats() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const totalPosts = await this.postModel.countDocuments();
+
+    const currentMonth = new Date();
+    const lastMonth = new Date();
+    lastMonth.setMonth(currentMonth.getMonth() - 1);
+
+    const [thisMonthCount, lastMonthCount] = await Promise.all([
+      this.postModel.countDocuments({
+        createdAt: {
+          $gte: new Date(
+            currentMonth.getFullYear(),
+            currentMonth.getMonth(),
+            1,
+          ),
+        },
+      }),
+      this.postModel.countDocuments({
+        createdAt: {
+          $gte: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1),
+          $lt: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1),
+        },
+      }),
+    ]);
+
+    const growth =
+      lastMonthCount === 0
+        ? thisMonthCount > 0
+          ? 100
+          : 0
+        : ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+
+    return {
+      code: '200',
+      totalPosts,
+      growth: parseFloat(growth.toFixed(2)),
+    };
+  }
 }

@@ -14,8 +14,8 @@ export class Notification {
   @Prop({ required: true })
   senderName: string;
 
-  @Prop({ required: true })
-  senderAvatar: string;
+  @Prop({ required: false })
+  senderAvatar?: string;
 
   @Prop({ required: true })
   content: string;

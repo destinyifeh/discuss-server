@@ -1,5 +1,4 @@
 import {
-  HttpStatus,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -16,6 +15,7 @@ import {
   GetPostsParams,
   PostImage,
   UpdatePostDto,
+  UserPostType,
 } from './dto/create-post.dto';
 import { Post } from './schema/post.schema';
 
@@ -55,13 +55,212 @@ export class PostsService {
     };
   }
 
-  async getPosts(params: GetPostsParams) {
-    const { page, limit, search } = params;
+  async getCurrentUserPosts(params: GetPostsParams & { type: UserPostType }) {
+    const { page, limit, search, userId, type } = params;
+    const currentUser = new Types.ObjectId(userId);
+    try {
+      const skip = (page - 1) * limit;
+
+      // Build the base search query
+      const searchQuery: any = {};
+
+      if (search) {
+        searchQuery.$or = [
+          { content: { $regex: search, $options: 'i' } },
+          { section: { $regex: search, $options: 'i' } },
+        ];
+      }
+
+      let posts: any[] = [];
+      let total: number = 0;
+
+      if (type === 'replies') {
+        const query = { commentBy: currentUser, ...searchQuery };
+
+        [posts, total] = await Promise.all([
+          this.commentModel
+            .find(query)
+            .populate('commentBy', 'username avatar')
+            .populate({
+              path: 'post',
+              populate: {
+                path: 'user',
+                select: 'username avatar',
+              },
+            })
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .lean(),
+          this.commentModel.countDocuments(query),
+        ]);
+      } else if (type === 'mentions') {
+        const query = {
+          'quotedComment.quotedUserId': currentUser,
+          ...searchQuery,
+        };
+
+        [posts, total] = await Promise.all([
+          this.commentModel
+            .find(query)
+            .populate('commentBy', 'username avatar')
+            .populate({
+              path: 'post',
+              populate: {
+                path: 'user',
+                select: 'username avatar',
+              },
+            })
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .lean(),
+          this.commentModel.countDocuments(query),
+        ]);
+      } else {
+        const query =
+          type === 'likes'
+            ? { likedBy: currentUser, ...searchQuery }
+            : { user: currentUser, ...searchQuery };
+
+        [posts, total] = await Promise.all([
+          this.postModel
+            .find(query)
+            .populate('user', 'username avatar')
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .lean(),
+          this.postModel.countDocuments(query),
+        ]);
+      }
+      console.log('hereeeeeemes', posts, type);
+      return {
+        code: '200',
+        message: 'Posts retrieved successfully',
+        data: {
+          posts,
+          pagination: {
+            totalItems: total,
+            page,
+            pages: Math.ceil(total / limit),
+            limit,
+          },
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      throw new InternalServerErrorException('Failed to get posts');
+    }
+  }
+
+  async getUserPosts(params: GetPostsParams & { type: UserPostType }) {
+    const { page, limit, search, userId, type } = params;
+    const currentUser = new Types.ObjectId(userId);
+    try {
+      const skip = (page - 1) * limit;
+
+      // Build the base search query
+      const searchQuery: any = {};
+
+      if (search) {
+        searchQuery.$or = [
+          { content: { $regex: search, $options: 'i' } },
+          { section: { $regex: search, $options: 'i' } },
+        ];
+      }
+
+      let posts: any[] = [];
+      let total: number = 0;
+
+      if (type === 'replies') {
+        const query = { commentBy: currentUser, ...searchQuery };
+
+        [posts, total] = await Promise.all([
+          this.commentModel
+            .find(query)
+            .populate('commentBy', 'username avatar')
+            .populate({
+              path: 'post',
+              populate: {
+                path: 'user',
+                select: 'username avatar',
+              },
+            })
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .lean(),
+          this.commentModel.countDocuments(query),
+        ]);
+      } else if (type === 'mentions') {
+        const query = {
+          'quotedComment.quotedUserId': currentUser,
+          ...searchQuery,
+        };
+
+        [posts, total] = await Promise.all([
+          this.commentModel
+            .find(query)
+            .populate('commentBy', 'username avatar')
+            .populate({
+              path: 'post',
+              populate: {
+                path: 'user',
+                select: 'username avatar',
+              },
+            })
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .lean(),
+          this.commentModel.countDocuments(query),
+        ]);
+      } else {
+        const query =
+          type === 'likes'
+            ? { likedBy: currentUser, ...searchQuery }
+            : { user: currentUser, ...searchQuery };
+
+        [posts, total] = await Promise.all([
+          this.postModel
+            .find(query)
+            .populate('user', 'username avatar')
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .lean(),
+          this.postModel.countDocuments(query),
+        ]);
+      }
+      console.log('hereeeeeemes', posts, type);
+      return {
+        code: '200',
+        message: 'Posts retrieved successfully',
+        data: {
+          posts,
+          pagination: {
+            totalItems: total,
+            page,
+            pages: Math.ceil(total / limit),
+            limit,
+          },
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      throw new InternalServerErrorException('Failed to get posts');
+    }
+  }
+
+  async getCurrentUserPostLikes(params: GetPostsParams) {
+    const { page, limit, search, userId } = params;
 
     try {
       const skip = (page - 1) * limit;
 
       const query: any = {};
+      query.likedBy = userId;
 
       if (search) {
         query.$or = [
@@ -83,7 +282,7 @@ export class PostsService {
 
       return {
         code: '200',
-        message: 'Posts retrieved successfully',
+        message: 'Like posts retrieved successfully',
         data: {
           posts,
           pagination: {
@@ -96,18 +295,67 @@ export class PostsService {
       };
     } catch (error) {
       console.error(error);
-      throw new InternalServerErrorException('Failed to get posts');
+      throw new InternalServerErrorException('Failed to get like posts');
     }
   }
 
-  async deletePost(id: string) {
-    const session = await this.connection.startSession();
-    session.startTransaction();
+  async getCurrentUserPostReplies(params: GetPostsParams) {
+    const { page, limit, search, userId } = params;
 
     try {
-      const post = await this.postModel.findById(id).session(session);
+      const skip = (page - 1) * limit;
+
+      const query: any = {};
+      query.commentBy = userId;
+
+      if (search) {
+        query.$or = [
+          { content: { $regex: search, $options: 'i' } },
+          { section: { $regex: search, $options: 'i' } },
+        ];
+      }
+
+      const [posts, total] = await Promise.all([
+        this.commentModel
+          .find(query)
+          .skip(skip)
+          .limit(limit)
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec(),
+        this.commentModel.countDocuments(query),
+      ]);
+
+      return {
+        code: '200',
+        message: 'Reply posts retrieved successfully',
+        data: {
+          posts,
+          pagination: {
+            totalItems: total,
+            page: page,
+            pages: Math.ceil(total / limit),
+            limit: limit,
+          },
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      throw new InternalServerErrorException('Failed to get reply posts');
+    }
+  }
+
+  async deletePost(id: string, userId: string, userRole: string) {
+    try {
+      const post = await this.postModel.findById(id);
       if (!post) {
         throw new NotFoundException('Post not found');
+      }
+
+      if (post.user.toString() !== userId && userRole !== 'super_admin') {
+        throw new NotFoundException(
+          "You don't have permission to delete this post.",
+        );
       }
 
       // 🔹 1. Collect public_ids of post images
@@ -117,9 +365,7 @@ export class PostsService {
           .map((img) => img.public_id) ?? [];
 
       // 🔹 2. Fetch comments related to this post
-      const comments = await this.commentModel
-        .find({ post: id })
-        .session(session);
+      const comments = await this.commentModel.find({ post: id });
 
       // 🔹 3. Collect public_ids of all comment images
       const commentImagePublicIds = comments
@@ -144,25 +390,19 @@ export class PostsService {
       }
 
       // 🔹 5. Delete comments
-      await this.commentModel.deleteMany({ post: id }).session(session);
+      await this.commentModel.deleteMany({ post: new Types.ObjectId(id) });
 
       // 🔹 6. Delete post
-      await this.postModel.deleteOne({ _id: id }).session(session);
-
-      // ✅ 7. Commit transaction
-      await session.commitTransaction();
-      session.endSession();
+      await this.postModel.deleteOne({ _id: id });
 
       return {
-        code: HttpStatus.OK,
+        code: '200',
         message: 'Post, comments, and related images deleted successfully',
       };
     } catch (error) {
-      console.log(error, 'delete post err');
-      await session.abortTransaction();
-      session.endSession();
+      console.error('Delete post error:', error);
       throw new InternalServerErrorException(
-        'Failed to delete post and associated data',
+        error?.message ?? 'Failed to delete post and associated data',
       );
     }
   }
@@ -286,20 +526,26 @@ export class PostsService {
     }
 
     const updatedPost = await this.postModel.findById(postId, 'bookmarkedBy');
-    console.log(updatedPost, 'bookmark post');
+
     return {
       bookmarked: !isBookmarked,
       bookmarks: updatedPost?.bookmarkedBy.length,
     };
   }
 
-  async toggleComments(postId: string, shouldClose: boolean) {
+  async toggleComments(postId: string) {
     const post = await this.postModel.findById(postId);
-    if (!post) throw new NotFoundException('Post not found');
-    post.commentsClosed = shouldClose;
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    // Toggle the value
+    post.commentsClosed = !post.commentsClosed;
     await post.save();
+
     return {
-      message: `Comments have been ${shouldClose ? 'closed' : 'opened'}`,
+      code: '200',
+      message: `Comments for content #${postId} ${post.commentsClosed ? 'have been closed' : 'have been opened'}`,
       post,
     };
   }
@@ -331,6 +577,102 @@ export class PostsService {
     return {
       code: '200',
       commentCount: commentCount,
+    };
+  }
+
+  async getPaginatedPostsWithCommentCount(
+    page: number,
+    limit: number,
+    search?: string,
+    section?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const match: any = {};
+    if (search) {
+      match.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { content: { $regex: search, $options: 'i' } },
+      ];
+    }
+    if (section) {
+      match.section = section;
+    }
+
+    const result = await this.postModel.aggregate([
+      { $match: match },
+
+      // Join comments
+      {
+        $lookup: {
+          from: 'comments',
+          localField: '_id',
+          foreignField: 'post',
+          as: 'comments',
+        },
+      },
+      {
+        $addFields: {
+          commentCount: { $size: '$comments' },
+        },
+      },
+
+      // Join user
+      {
+        $lookup: {
+          from: 'users',
+          let: { userId: '$user' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$_id', '$$userId'] } } },
+            {
+              $project: {
+                _id: 1,
+                username: 1,
+                avatar: 1,
+              },
+            },
+          ],
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+
+      // Remove large comment array
+      {
+        $project: {
+          comments: 0,
+          'user.password': 0, // protect sensitive fields
+          'user.email': 0,
+        },
+      },
+
+      // Sort newest first
+      { $sort: { createdAt: -1 } },
+
+      // Pagination using $facet
+      {
+        $facet: {
+          data: [{ $skip: skip }, { $limit: limit }],
+          totalCount: [{ $count: 'count' }],
+        },
+      },
+    ]);
+
+    const posts = result[0].data;
+    const totalItems = result[0].totalCount[0]?.count || 0;
+
+    return {
+      code: '200',
+      message: 'Posts retrieved successfully',
+      data: {
+        posts,
+        pagination: {
+          totalItems: totalItems,
+          page: page,
+          pages: Math.ceil(totalItems / limit),
+          limit: limit,
+        },
+      },
     };
   }
 }

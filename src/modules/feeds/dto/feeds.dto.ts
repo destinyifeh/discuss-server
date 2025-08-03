@@ -4,6 +4,8 @@ export interface FeedQuery {
   limit: number;
   adPlan?: AdPlan;
   postId?: string;
+  onlyBookmarked?: boolean;
+  theCurrentUserId: string;
 }
 
 export type AdPlan = 'basic' | 'professional' | 'enterprise';

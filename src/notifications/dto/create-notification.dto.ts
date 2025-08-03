@@ -14,6 +14,7 @@ export class CreateNotificationDto {
   @IsString()
   senderName: string;
 
+  @IsOptional()
   @IsString()
-  senderAvatar: string;
+  senderAvatar?: string;
 }
