@@ -1,11 +1,23 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MailModule } from 'src/mail/mail.module';
+import { NotificationsModule } from 'src/notifications/notifications.module';
+import { MediaUploadModule } from '../media-upload/media-upload.module';
+import { User, UserSchema } from '../users/schemas/user.schema';
 import { AdsController } from './ads.controller';
 import { AdsService } from './ads.service';
 import { Ad, AdSchema } from './schema/ad.schema';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Ad.name, schema: AdSchema }])],
+  imports: [
+    MongooseModule.forFeature([
+      { name: Ad.name, schema: AdSchema },
+      { name: User.name, schema: UserSchema },
+    ]),
+    MediaUploadModule,
+    MailModule,
+    NotificationsModule,
+  ],
   controllers: [AdsController],
   providers: [AdsService],
   exports: [AdsService],

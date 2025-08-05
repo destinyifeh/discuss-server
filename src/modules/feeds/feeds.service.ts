@@ -92,7 +92,6 @@ export class FeedsService {
   }
 
   private async fetchComments({ page, limit, postId }: FeedQuery) {
-    console.log(postId, 'postIddd');
     const objectId = new Types.ObjectId(postId);
     return (
       this.commentModel

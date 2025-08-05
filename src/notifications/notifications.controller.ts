@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -26,10 +28,17 @@ export class NotificationsController {
   @UseGuards(JwtAuthGuard)
   @Get()
   async getNotifications(
-    @Query('limit') limit: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('requestedNote') requestedNote: string,
     @CurrentUser() user: { userId: string },
   ) {
-    return this.notificationService.getNotifications(user.userId, limit);
+    return this.notificationService.getNotifications(
+      user.userId,
+      limit,
+      page,
+      requestedNote,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

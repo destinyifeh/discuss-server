@@ -35,7 +35,6 @@ export class CommentsService {
     currentUserId: string,
     images?: UploadApiResponse[] | null,
   ) {
-    console.log(data, 'dataaa');
     const post = await this.postModel.findById(data.postId);
     if (!post) throw new NotFoundException('Post not found');
     if (post.commentsClosed) {
@@ -56,6 +55,25 @@ export class CommentsService {
     });
 
     await comment.save();
+
+    if (
+      comment.quotedComment &&
+      comment.quotedComment.quotedUserId !== currentUserId
+    ) {
+      const theUser = await this.userModel.findById(
+        currentUserId,
+        'username avatar',
+      );
+      if (theUser) {
+        await this.notificationsService.createNotification({
+          type: 'mentioned',
+          senderName: theUser.username,
+          senderAvatar: theUser.avatar,
+          content: 'Mentioned you',
+          recipient: String(comment.quotedComment.quotedUserId),
+        });
+      }
+    }
 
     return {
       code: '200',

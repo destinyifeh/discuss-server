@@ -6,35 +6,28 @@ export type AdDocument = HydratedDocument<Ad>;
 
 @Schema({ timestamps: true })
 export class Ad {
-  /* ---------- author (denormalised) ---------- */
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  authorId: Types.ObjectId;
-
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   author: Types.ObjectId;
 
-  @Prop() authorName: string;
-
-  @Prop() authorUsername: string;
-
-  @Prop() authorAvatar: string;
-
-  /* ---------- main ad info ------------------- */
   @Prop({ enum: ['sponsored', 'banner'], default: 'sponsored' })
   type: string;
 
   @Prop({ required: true }) title: string;
 
-  @Prop({ required: true }) content: string;
+  @Prop({ required: false, default: null }) content: string;
 
-  @Prop() imageUrl: string;
+  @Prop({ type: String, default: null })
+  image: string;
+
+  @Prop({ type: String, default: null })
+  image_public_id: string;
 
   @Prop({ enum: ['basic', 'professional', 'enterprise'], default: 'basic' })
   plan: string;
 
   @Prop({ required: true }) section: string;
 
-  @Prop({ type: Number, default: 0 }) price: number;
+  @Prop({ type: String, default: '0' }) price: string;
 
   @Prop({
     enum: AdStatus,
@@ -52,10 +45,9 @@ export class Ad {
 
   @Prop() rejectedDate?: Date;
 
-  // Rejection reason (optional)
   @Prop() rejectionReason?: string;
 
-  @Prop({ enum: Object.values(AdCTA) })
+  @Prop({ enum: AdCTA, default: AdCTA.LearnMore })
   callToAction: AdCTA;
 }
 

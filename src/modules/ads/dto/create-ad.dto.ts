@@ -1,29 +1,30 @@
-import { Type } from 'class-transformer';
-import {
-  IsDateString,
-  IsEnum,
-  IsNumber,
-  IsOptional,
-  IsString,
-  IsUrl,
-  ValidateNested,
-} from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUrl } from 'class-validator';
 
 enum AdType {
-  Sponsored = 'Sponsored',
-  Organic = 'Banner',
+  sponsored = 'sponsored',
+  banner = 'banner',
 }
 
 enum Plan {
-  Basic = 'basic',
-  Professional = 'professional',
+  basic = 'basic',
+  professional = 'professional',
   enterprise = 'enterprise',
 }
 
-enum Section {
-  Home = 'home',
-  Explore = 'explore',
-}
+export type Section =
+  | 'technology'
+  | 'travel'
+  | 'food'
+  | 'sports'
+  | 'politics'
+  | 'education'
+  | 'religion'
+  | 'romance'
+  | 'jobs'
+  | 'news'
+  | 'entertainment'
+  | 'celebrity'
+  | 'home';
 
 enum AdStatus {
   Pending = 'pending',
@@ -70,14 +71,6 @@ class AuthorDto {
 }
 
 export class CreateAdDto {
-  @IsString()
-  @IsOptional()
-  id: string;
-
-  @ValidateNested()
-  @Type(() => AuthorDto)
-  author: AuthorDto;
-
   @IsEnum(AdType)
   type: AdType;
 
@@ -85,26 +78,17 @@ export class CreateAdDto {
   title: string;
 
   @IsString()
+  @IsOptional()
   content: string;
-
-  @IsUrl()
-  imageUrl: string;
 
   @IsEnum(Plan)
   plan: Plan;
 
-  @IsEnum(Section)
+  @IsString()
   section: Section;
 
-  @IsNumber()
-  price: number;
-
-  @IsEnum(AdStatus)
-  status: AdStatus;
-
-  @IsDateString()
-  @IsOptional()
-  submittedDate: string;
+  @IsString()
+  price: string;
 
   @IsUrl()
   targetUrl: string;
@@ -114,17 +98,6 @@ export class CreateAdDto {
 
   @IsString()
   duration: string;
-
-  @IsString()
-  @IsOptional()
-  approvedDate?: string;
-  @IsString()
-  @IsOptional()
-  rejectedDate?: string;
-
-  @IsString()
-  @IsOptional()
-  rejectionReason?: string;
 }
 
 export class UpdateAdDto extends CreateAdDto {}

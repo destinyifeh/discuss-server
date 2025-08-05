@@ -9,24 +9,48 @@ import {
   Patch,
   Post,
   Query,
-  Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadApiResponse } from 'cloudinary';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { AdStatus } from 'src/common/utils/types/ad.types';
+import { multerConfig } from 'src/config/multer.config';
+import { MediaUploadService } from './../media-upload/media-upload.service';
 import { AdsService } from './ads.service';
 import { CreateAdDto, UpdateAdDto } from './dto/create-ad.dto';
 
-@Controller('ads')
+@UseGuards(JwtAuthGuard)
+@Controller('ad')
 export class AdsController {
-  constructor(private readonly adsService: AdsService) {}
+  constructor(
+    private readonly adsService: AdsService,
+    private readonly mediaUploadService: MediaUploadService,
+  ) {}
 
   /* Create ad (requires login) */
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Request() req, @Body() dto: CreateAdDto) {
-    const user = req.user.userId;
-    return this.adsService.create(user, dto);
+  @UseInterceptors(FileInterceptor('image', multerConfig))
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+  async createAd(
+    @Body() dto: CreateAdDto,
+    @CurrentUser() user: { userId: string },
+    @UploadedFile(AvatarValidationPipe) image?: Express.Multer.File,
+  ) {
+    let result: UploadApiResponse | null = null;
+
+    if (image) {
+      result = await this.mediaUploadService.uploadImage(image);
+    }
+
+    return this.adsService.createAd(user.userId, dto, result);
   }
 
   /* Public list of active ads, optional ?section=home */

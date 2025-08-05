@@ -1,4 +1,9 @@
-import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpStatus,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
 import { Model, Types } from 'mongoose';
@@ -54,18 +59,53 @@ export class NotificationsService {
     };
   }
 
-  async getNotifications(currentUserId: string, limit = 20) {
-    const notifications = await this.notificationModel
-      .find({ recipient: new Types.ObjectId(currentUserId) })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean()
-      .exec();
+  async getNotifications(
+    currentUserId: string,
+    limit: number,
+    page: number,
+    requestedNote: string,
+  ) {
+    try {
+      const skip = (page - 1) * limit;
 
-    return {
-      code: '200',
-      notifications,
-    };
+      const query: any = {};
+      query.recipient = new Types.ObjectId(currentUserId);
+
+      if (requestedNote === 'mentions') {
+        query.type = 'mentioned';
+      } else {
+        // Exclude 'mentioned' type
+        query.type = { $ne: 'mentioned' };
+      }
+
+      const [notifications, total] = await Promise.all([
+        this.notificationModel
+          .find(query)
+          .skip(skip)
+          .limit(limit)
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec(),
+        this.notificationModel.countDocuments(query),
+      ]);
+      return {
+        code: '200',
+        message: 'Notifications retrieved successfully',
+        data: {
+          notifications,
+          pagination: {
+            totalItems: total,
+            page: page,
+            pages: Math.ceil(total / limit),
+            limit: limit,
+          },
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      console.log(error, 'note err');
+      throw new InternalServerErrorException('Failed to get notifications');
+    }
   }
 
   async getUnreadCount(currentUserId: string) {

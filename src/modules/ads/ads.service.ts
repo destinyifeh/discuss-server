@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { UploadApiResponse } from 'cloudinary';
+import { Model, Types } from 'mongoose';
 import { AdStatus } from 'src/common/utils/types/ad.types';
 import { CreateAdDto, UpdateAdDto } from './dto/create-ad.dto';
 import { Ad } from './schema/ad.schema';
@@ -10,17 +11,26 @@ export class AdsService {
   constructor(@InjectModel(Ad.name) private readonly adModel: Model<Ad>) {}
 
   /* Create: author is the current user */
-  async create(author: any, dto: CreateAdDto) {
+  async createAd(
+    author: string,
+    dto: CreateAdDto,
+    image?: UploadApiResponse | null,
+  ) {
     const ad = new this.adModel({
       ...dto,
-      authorId: author,
-      //   authorName: author.name,
-      //   authorUsername: author.username,
-      //   authorAvatar: author.avatar,
-      status: 'pending',
-      submittedDate: new Date(),
+      author: new Types.ObjectId(author),
+      image: image?.secure_url ?? null,
+      image_public_id: image?.public_id ?? null,
     });
-    return ad.save();
+    const savedAd = await ad.save();
+
+    console.log('Saved ad:', savedAd);
+
+    return {
+      code: '200',
+      message: 'success',
+      data: savedAd,
+    };
   }
 
   async findAll(section?: string) {
