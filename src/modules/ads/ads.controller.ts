@@ -1,11 +1,11 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
-  HttpCode,
-  HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -24,9 +24,8 @@ import { AdStatus } from 'src/common/utils/types/ad.types';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from './../media-upload/media-upload.service';
 import { AdsService } from './ads.service';
-import { CreateAdDto, UpdateAdDto } from './dto/create-ad.dto';
+import { CreateAdDto } from './dto/create-ad.dto';
 
-@UseGuards(JwtAuthGuard)
 @Controller('ad')
 export class AdsController {
   constructor(
@@ -34,7 +33,6 @@ export class AdsController {
     private readonly mediaUploadService: MediaUploadService,
   ) {}
 
-  /* Create ad (requires login) */
   @UseGuards(JwtAuthGuard)
   @Post()
   @UseInterceptors(FileInterceptor('image', multerConfig))
@@ -53,37 +51,111 @@ export class AdsController {
     return this.adsService.createAd(user.userId, dto, result);
   }
 
-  /* Public list of active ads, optional ?section=home */
   @Get()
-  findAll(@Query('section') section?: string) {
-    return this.adsService.findAll(section);
+  async getAds(
+    @Query('search') search?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.adsService.getAds(page, limit, search);
   }
 
-  /* Single ad (public) */
+  @Get('count-by-Status')
+  async getCountAdByStatus(@Query('status') status: AdStatus) {
+    return this.adsService.getCountAdByStatus(status);
+  }
+
+  @Get('user-ads')
+  @UseGuards(JwtAuthGuard)
+  async getUserAdByStatus(
+    @CurrentUser() user: { userId: string },
+    @Query('status') status: AdStatus,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+  ) {
+    return this.adsService.getUserAdByStatus(
+      status,
+      user.userId,
+      page,
+      limit,
+      search,
+    );
+  }
+
+  @Post('initialize')
+  async initialize(
+    @Body() body: { email: string; amount: number; otherDetails: any },
+  ) {
+    return this.adsService.initializeTransaction(
+      body.email,
+      body.amount,
+      body.otherDetails,
+    );
+  }
+
+  @Get('verify')
+  async verify(@Query('reference') reference: string) {
+    return this.adsService.verifyTransaction(reference);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.adsService.findOne(id);
   }
 
-  /* Update ad (author or admin) */
   @UseGuards(JwtAuthGuard)
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateAdDto) {
-    return this.adsService.update(id, dto);
+  @Patch(':adId/pause/:adOwnerId')
+  pauseAd(
+    @Param('adId') adId: string,
+    @Param('adOwnerId') adOwnerId: string,
+    @Body() dto: { reason: string },
+  ) {
+    return this.adsService.pauseAd(adId, dto.reason, adOwnerId);
   }
 
-  /* Change status (admin endpoint) */
   @UseGuards(JwtAuthGuard)
-  @Patch(':id/status/:status')
-  changeStatus(@Param('id') id: string, @Param('status') status: AdStatus) {
-    return this.adsService.changeStatus(id, status);
+  @Patch(':adId/approve/:adOwnerId')
+  approveAd(
+    @Param('adId') adId: string,
+    @Param('adOwnerId') adOwnerId: string,
+  ) {
+    return this.adsService.approveAd(adId, adOwnerId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':adId/activate/:adOwnerId')
+  activateAd(
+    @Param('adId') adId: string,
+    @Param('adOwnerId') adOwnerId: string,
+  ) {
+    return this.adsService.activateAd(adId, adOwnerId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':adId/reject/:adOwnerId')
+  rejectAd(
+    @Param('adId') adId: string,
+    @Param('adOwnerId') adOwnerId: string,
+    @Body() dto: { reason: string },
+  ) {
+    return this.adsService.rejectAd(adId, dto.reason, adOwnerId);
+  }
+
+  @Post(':adId/impressions')
+  updateAdImpressions(@Param('adId') adId: string) {
+    return this.adsService.updateAdImpressions(adId);
+  }
+
+  @Post(':adId/clicks')
+  updateAdClicks(@Param('adId') adId: string) {
+    return this.adsService.updateAdClicks(adId);
   }
 
   /* Remove ad (author or admin) */
   @UseGuards(JwtAuthGuard)
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete(':id/delete')
   remove(@Param('id') id: string) {
-    return this.adsService.remove(id);
+    return this.adsService.deleteAd(id);
   }
 }

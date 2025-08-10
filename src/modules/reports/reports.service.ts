@@ -114,7 +114,6 @@ export class ReportsService {
       this.reportModel.countDocuments(query),
     ]);
 
-    console.log(reports, 'reportooo');
     return {
       code: '200',
       message: 'Reports retrieved successfully',

@@ -21,32 +21,6 @@ import { RolesGuard } from './guards/role.gurad';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  @Patch('users/:id/action')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.USER)
-  userAction(
-    @Param('id') id: string,
-    @Body() dto: AccountRestrictionDto,
-    @CurrentUser() user: { username: string },
-  ) {
-    const performedBy = user.username; // adjust if using different payload
-    return this.adminService.accountRestrictionAction(id, dto, performedBy);
-  }
-
-  @Get('user-stats')
-  async getUserStats() {
-    return this.adminService.getUserStats();
-  }
-
-  @Get('user-distribution')
-  async getUserDistribution() {
-    return this.adminService.getUserDistribution();
-  }
-
-  @Get('user-distribution-and-stats')
-  async getUserDistributionAndStats() {
-    return this.adminService.getUserDistributionAndStats();
-  }
-
   @Get('post-stats')
   async getPostStats() {
     return this.adminService.getPostStats();
@@ -70,6 +44,32 @@ export class AdminController {
       search,
       status,
     );
+  }
+
+  @Get('user-stats')
+  async getUserStats() {
+    return this.adminService.getUserStats();
+  }
+
+  @Get('user-distribution')
+  async getUserDistribution() {
+    return this.adminService.getUserDistribution();
+  }
+
+  @Get('user-distribution-and-stats')
+  async getUserDistributionAndStats() {
+    return this.adminService.getUserDistributionAndStats();
+  }
+
+  @Patch('users/:id/action')
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.USER)
+  userAction(
+    @Param('id') id: string,
+    @Body() dto: AccountRestrictionDto,
+    @CurrentUser() user: { username: string },
+  ) {
+    const performedBy = user.username; // adjust if using different payload
+    return this.adminService.accountRestrictionAction(id, dto, performedBy);
   }
 
   @Patch('update-role/:userId')

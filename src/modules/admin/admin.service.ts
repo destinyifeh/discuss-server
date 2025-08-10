@@ -216,7 +216,7 @@ export class AdminService {
     }
 
     // Get total count
-    const totalUsers = await this.userModel.countDocuments();
+    const totalUsers = await this.userModel.countDocuments(query);
 
     // Get paginated users
     const users = await this.userModel

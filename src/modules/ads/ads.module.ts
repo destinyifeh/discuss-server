@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MailModule } from 'src/mail/mail.module';
 import { NotificationsModule } from 'src/notifications/notifications.module';
@@ -17,6 +18,7 @@ import { Ad, AdSchema } from './schema/ad.schema';
     MediaUploadModule,
     MailModule,
     NotificationsModule,
+    ConfigModule,
   ],
   controllers: [AdsController],
   providers: [AdsService],

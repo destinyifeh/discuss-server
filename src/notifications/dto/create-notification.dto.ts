@@ -2,7 +2,16 @@ import { IsOptional, IsString } from 'class-validator';
 
 export class CreateNotificationDto {
   @IsString()
-  type: 'liked' | 'replied' | 'followed' | 'warning' | 'mentioned';
+  type:
+    | 'liked'
+    | 'replied'
+    | 'followed'
+    | 'warning'
+    | 'mentioned'
+    | 'ad_approved'
+    | 'ad_rejected'
+    | 'ad_paused'
+    | 'ad_activated';
 
   @IsString()
   content: string;

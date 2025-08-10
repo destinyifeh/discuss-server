@@ -17,7 +17,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 @Module({
   imports: [
     UsersModule,
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(process.env.MONGO_DEV_URL as string),
     AuthModule,
     ReportsModule,

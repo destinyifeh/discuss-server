@@ -6,7 +6,17 @@ export type UserDocument = HydratedDocument<Notification>;
 @Schema({ timestamps: true })
 export class Notification {
   @Prop({
-    enum: ['liked', 'replied', 'followed', 'warning', 'mentioned'],
+    enum: [
+      'liked',
+      'replied',
+      'followed',
+      'warning',
+      'mentioned',
+      'ad_approved',
+      'ad_rejected',
+      'ad_paused',
+      'ad_activated',
+    ],
     required: true,
   })
   type: string;

@@ -26,4 +26,6 @@ export enum AdStatus {
   REJECTED = 'rejected',
   ACTIVE = 'active',
   EXPIRED = 'expired',
+  PAUSED = 'paused',
+  ALL = 'all',
 }

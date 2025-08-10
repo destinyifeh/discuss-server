@@ -20,7 +20,7 @@ export class FeedsController {
    *  GET /feed               (default "after5" mode)
    *  GET /feed?mode=random   (random shuffle mode)
    *  GET /feed?mode=after5   (after every 5 posts)
-   *  GET /feed?mode=pattern&pattern=3,8,12 (advanced custom positions)
+   *  GET /feed?mode=pattern&pattern=3,8,12 (advanced custom positions)//4, 9, 15
    *
    *  Common query params:
    *    • section  – optional filter (e.g. "home")
@@ -60,7 +60,7 @@ export class FeedsController {
       theCurrentUserId,
     });
     const total = await this.feedService.countTotalPosts(search, section); // You need to implement this logic
-
+    //console.log(posts, 'my postss');
     return {
       code: '200',
       message: 'Posts retrieved successfully',

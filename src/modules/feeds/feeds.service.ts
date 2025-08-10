@@ -88,7 +88,11 @@ export class FeedsService {
     } else if (arg?.adPlan) {
       filter.plan = arg.adPlan;
     }
-    return this.adModel.find(filter).lean();
+    return this.adModel
+      .find(filter)
+      .populate('owner', 'username avatar')
+      .sort({ createdAt: -1 })
+      .lean();
   }
 
   private async fetchComments({ page, limit, postId }: FeedQuery) {
@@ -138,7 +142,7 @@ export class FeedsService {
   ) {
     const posts = await this.fetchComments(args);
     const ads = await this.fetchActiveAds(args);
-
+    console.log(args.mode, 'modalll');
     switch (args.mode) {
       case 'random':
         return this.randomMerge(posts, ads);
@@ -215,7 +219,7 @@ export class FeedsService {
 
   // --------------------- Strategy C: Custom pattern ------------------------ //
   /** pattern string like "3,7,10" => insert ads at these absolute indices */
-  private patternMerge(posts: any[], ads: any[], pattern?: string) {
+  private patternMergeOld(posts: any[], ads: any[], pattern?: string) {
     const positions = (pattern ?? '')
       .split(',')
       .map((n) => parseInt(n.trim()))
@@ -232,6 +236,46 @@ export class FeedsService {
         out.push({ _type: 'post', data: posts[postIdx++] });
       }
     }
+    return out;
+  }
+
+  private patternMerge(posts: any[], ads: any[], pattern: string = '4, 9, 15') {
+    // Shuffle ads
+    for (let i = ads.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ads[i], ads[j]] = [ads[j], ads[i]];
+    }
+
+    // Parse pattern
+    let positions = (pattern ?? '')
+      .split(',')
+      .map((n) => parseInt(n.trim()))
+      .filter((n) => !isNaN(n));
+
+    if (positions.length > 1) {
+      // Auto-extend the pattern to cover all posts
+      const lastGap =
+        positions[positions.length - 1] - positions[positions.length - 2];
+      let lastPos = positions[positions.length - 1];
+      while (lastPos < posts.length + ads.length) {
+        lastPos += lastGap;
+        positions.push(lastPos);
+      }
+    }
+
+    const out: any[] = [];
+    let postIdx = 0;
+    let adIdx = 0;
+
+    const totalLength = posts.length + Math.min(ads.length, positions.length);
+    for (let i = 0; i < totalLength; i++) {
+      if (positions.includes(i) && adIdx < ads.length) {
+        out.push({ _type: 'ad', data: ads[adIdx++] });
+      } else if (postIdx < posts.length) {
+        out.push({ _type: 'post', data: posts[postIdx++] });
+      }
+    }
+
     return out;
   }
 }

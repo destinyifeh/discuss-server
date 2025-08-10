@@ -7,7 +7,7 @@ export type AdDocument = HydratedDocument<Ad>;
 @Schema({ timestamps: true })
 export class Ad {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  author: Types.ObjectId;
+  owner: Types.ObjectId;
 
   @Prop({ enum: ['sponsored', 'banner'], default: 'sponsored' })
   type: string;
@@ -17,7 +17,7 @@ export class Ad {
   @Prop({ required: false, default: null }) content: string;
 
   @Prop({ type: String, default: null })
-  image: string;
+  imageUrl: string;
 
   @Prop({ type: String, default: null })
   image_public_id: string;
@@ -25,7 +25,7 @@ export class Ad {
   @Prop({ enum: ['basic', 'professional', 'enterprise'], default: 'basic' })
   plan: string;
 
-  @Prop({ required: true }) section: string;
+  @Prop({ required: false, default: 'enterprise' }) section: string;
 
   @Prop({ type: String, default: '0' }) price: string;
 
@@ -43,9 +43,19 @@ export class Ad {
 
   @Prop() approvedDate?: Date;
 
-  @Prop() rejectedDate?: Date;
+  @Prop({ default: null }) rejectedDate?: Date;
+
+  @Prop({ default: null }) pausedDate?: Date;
+
+  @Prop() activatedDate?: Date;
 
   @Prop() rejectionReason?: string;
+
+  @Prop() expirationDate?: Date;
+
+  @Prop() clicks?: number;
+
+  @Prop() impressions?: number;
 
   @Prop({ enum: AdCTA, default: AdCTA.LearnMore })
   callToAction: AdCTA;

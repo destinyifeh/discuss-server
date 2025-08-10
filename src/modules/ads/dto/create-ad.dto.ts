@@ -85,6 +85,7 @@ export class CreateAdDto {
   plan: Plan;
 
   @IsString()
+  @IsOptional()
   section: Section;
 
   @IsString()
