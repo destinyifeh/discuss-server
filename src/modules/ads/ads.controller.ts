@@ -99,6 +99,11 @@ export class AdsController {
     return this.adsService.verifyTransaction(reference);
   }
 
+  @Get('banner-ads')
+  async getBannerAds(@Query('section') section: string) {
+    return this.adsService.getBannerAds(section);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.adsService.findOne(id);
@@ -140,6 +145,12 @@ export class AdsController {
     @Body() dto: { reason: string },
   ) {
     return this.adsService.rejectAd(adId, dto.reason, adOwnerId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':adId/resume')
+  reaumeAd(@Param('adId') adId: string) {
+    return this.adsService.resumeAd(adId);
   }
 
   @Post(':adId/impressions')

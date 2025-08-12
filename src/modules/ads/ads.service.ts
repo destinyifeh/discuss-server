@@ -310,7 +310,7 @@ export class AdsService {
     }
   }
 
-  async resumeAd(id: string, reason: string, adOwnerId: string) {
+  async resumeAd(id: string) {
     try {
       const ad = await this.adModel.findByIdAndUpdate(
         id,
@@ -353,6 +353,25 @@ export class AdsService {
 
     if (!ad) throw new NotFoundException('Ad not found');
     return { code: '200', ad };
+  }
+
+  async getBannerAds(section: string) {
+    console.log(section, 'sectionnnnn');
+    const ads = await this.adModel.find({
+      section: section.toLowerCase(),
+      status: AdStatus.ACTIVE,
+      type: 'banner',
+    });
+    console.log(ads, 'ad');
+
+    if (!ads || ads.length === 0) {
+      throw new NotFoundException('No active ads found for this section');
+    }
+
+    // Shuffle each time it's called
+    const shuffledAds = ads.sort(() => Math.random() - 0.5);
+
+    return { code: '200', ads: shuffledAds };
   }
 
   //payment

@@ -25,7 +25,7 @@ export class Ad {
   @Prop({ enum: ['basic', 'professional', 'enterprise'], default: 'basic' })
   plan: string;
 
-  @Prop({ required: false, default: 'enterprise' }) section: string;
+  @Prop({ required: false }) section: string;
 
   @Prop({ type: String, default: '0' }) price: string;
 
