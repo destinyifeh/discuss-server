@@ -11,6 +11,7 @@ import { FeedsModule } from './modules/feeds/feeds.module';
 import { MediaUploadModule } from './modules/media-upload/media-upload.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { RedisModule } from './modules/storage/redis.module';
 import { UsersModule } from './modules/users/users.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
@@ -28,6 +29,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     FeedsModule,
     MailModule,
     MediaUploadModule,
+    RedisModule,
     // MongooseModule.forRootAsync({
     //   imports: [ConfigModule],
     //   inject: [ConfigService],

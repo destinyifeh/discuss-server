@@ -15,13 +15,17 @@ import {
 } from 'src/common/utils/constants/api-resources';
 import { AdStatus } from 'src/common/utils/types/ad.types';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { RedisService } from '../storage/redis.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { Ad } from './schema/ad.schema';
 
 @Injectable()
 export class AdsService {
   private readonly paystackSecretKey: string | undefined;
+  private rotationMap: Record<string, { index: number; ads: any[] }> = {};
+
   constructor(
+    private readonly redisService: RedisService,
     @InjectModel(Ad.name) private readonly adModel: Model<Ad>,
     private readonly notificationsService: NotificationsService,
     private readonly configService: ConfigService,
@@ -29,6 +33,22 @@ export class AdsService {
     this.paystackSecretKey = this.configService.get<string>(
       'PAYSTACK_SECRET_KEY',
     );
+  }
+
+  private async setAdRotation(
+    section: string,
+    rotation: { index: number; ads: any[] },
+  ) {
+    const client = this.redisService.getClient();
+    await client.set(`ads:${section}`, JSON.stringify(rotation));
+  }
+
+  private async getAdRotation(
+    section: string,
+  ): Promise<{ index: number; ads: any[] } | null> {
+    const client = this.redisService.getClient();
+    const data = await client.get(`ads:${section}`);
+    return data ? JSON.parse(data) : null;
   }
 
   /* Create: author is the current user */
@@ -355,7 +375,7 @@ export class AdsService {
     return { code: '200', ad };
   }
 
-  async getBannerAds(section: string) {
+  async getBannerAds2(section: string) {
     console.log(section, 'sectionnnnn');
     const ads = await this.adModel.find({
       section: section.toLowerCase(),
@@ -372,6 +392,72 @@ export class AdsService {
     const shuffledAds = ads.sort(() => Math.random() - 0.5);
 
     return { code: '200', ads: shuffledAds };
+  }
+  async getBannerAds3(section: string) {
+    const sectionKey = section.toLowerCase();
+
+    // Load ads into rotation if not loaded or empty
+    if (
+      !this.rotationMap[sectionKey] ||
+      this.rotationMap[sectionKey].ads.length === 0
+    ) {
+      const ads = await this.adModel.find({
+        section: sectionKey,
+        status: AdStatus.ACTIVE,
+        type: 'banner',
+      });
+
+      if (!ads || ads.length === 0) {
+        throw new NotFoundException('No active ads found for this section');
+      }
+
+      // Shuffle once
+      const shuffledAds = ads.sort(() => Math.random() - 0.5);
+      this.rotationMap[sectionKey] = { index: 0, ads: shuffledAds };
+    }
+
+    const rotation = this.rotationMap[sectionKey];
+
+    // Get next ad in sequence
+    const ad = rotation.ads[rotation.index];
+    rotation.index = (rotation.index + 1) % rotation.ads.length;
+
+    return { code: '200', ads: [ad] }; // Return one ad at a time
+  }
+
+  async getBannerAds(section: string) {
+    const sectionKey = section.toLowerCase();
+
+    // Try to get rotation from Redis
+    let rotation = await this.getAdRotation(sectionKey);
+
+    // If not found, load fresh ads from DB and store in Redis
+    if (!rotation || rotation.ads.length === 0) {
+      const ads = await this.adModel.find({
+        section: sectionKey,
+        status: AdStatus.ACTIVE,
+        type: 'banner',
+      });
+
+      if (!ads || ads.length === 0) {
+        throw new NotFoundException('No active ads found for this section');
+      }
+
+      // Shuffle once before storing
+      const shuffledAds = ads.sort(() => Math.random() - 0.5);
+      rotation = { index: 0, ads: shuffledAds };
+
+      await this.setAdRotation(sectionKey, rotation);
+    }
+
+    // Get the next ad in sequence
+    const ad = rotation.ads[rotation.index];
+    rotation.index = (rotation.index + 1) % rotation.ads.length;
+
+    // Save updated rotation back to Redis
+    await this.setAdRotation(sectionKey, rotation);
+
+    return { code: '200', ads: [ad] }; // one ad per call
   }
 
   //payment

@@ -4,7 +4,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { UploadApiResponse } from 'cloudinary';
 import { Connection, Model, Types } from 'mongoose';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { Comment } from '../comments/schema/comment.schema';
@@ -33,12 +32,20 @@ export class PostsService {
   async createPost(
     currentUserId: string,
     data: CreatePostDto,
-    images?: UploadApiResponse[] | null,
+    // images?: UploadApiResponse[] | null,
+    images?: { url: string; key: string }[] | null,
   ) {
+    // const formattedImages: PostImage[] = Array.isArray(images)
+    //   ? images.map((img) => ({
+    //       secure_url: img.secure_url,
+    //       public_id: img.public_id,
+    //     }))
+    //   : [];
+
     const formattedImages: PostImage[] = Array.isArray(images)
       ? images.map((img) => ({
-          secure_url: img.secure_url,
-          public_id: img.public_id,
+          secure_url: img.url,
+          public_id: img.key,
         }))
       : [];
 
@@ -47,7 +54,7 @@ export class PostsService {
       images: formattedImages,
       user: new Types.ObjectId(currentUserId),
     });
-
+    console.log(post, 'createdPost');
     return {
       code: '200',
       message: 'Post created',
@@ -381,7 +388,7 @@ export class PostsService {
 
       if (allPublicIdsToDelete.length > 0) {
         try {
-          await this.mediaUploadService.deleteImages(allPublicIdsToDelete);
+          await this.mediaUploadService.deleteFiles(allPublicIdsToDelete);
         } catch (error) {
           throw new InternalServerErrorException(
             `Failed to delete images: ${error.message}`,
@@ -410,22 +417,28 @@ export class PostsService {
   async updatePost(
     id: string,
     data: UpdatePostDto,
-    newImages?: UploadApiResponse[] | null,
+    newImages?: { url: string; key: string }[] | null,
   ) {
     const post = await this.postModel.findById(id).exec();
     if (!post) throw new NotFoundException('Post not found');
 
-    console.log(data, 'the removaldata');
+    console.log(data.removedImageIds, 'the removaldata');
     // Delete removed images from cloud
-    if (data.removedImageIds && data.removedImageIds.length > 0) {
-      await this.mediaUploadService.deleteImages(data.removedImageIds);
+    if (data.removedImageIds) {
+      const removedIds = Array.isArray(data.removedImageIds)
+        ? data.removedImageIds
+        : [data.removedImageIds];
+
+      if (removedIds.length > 0) {
+        await this.mediaUploadService.deleteFiles(removedIds);
+      }
     }
 
     // Prepare new image data
     const uploadedImages: PostImage[] =
       newImages?.map((res) => ({
-        secure_url: res.secure_url,
-        public_id: res.public_id,
+        secure_url: res.url,
+        public_id: res.key,
       })) ?? [];
 
     // Filter out removed originals

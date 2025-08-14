@@ -5,11 +5,125 @@ import {
   UploadApiResponse,
 } from 'cloudinary';
 
+import {
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
+
 @Injectable()
 export class MediaUploadService {
+  private s3: S3Client;
+  private readonly bucketName: string;
+  private readonly region: string;
+  private readonly accessId: string;
+  private readonly secretAccessKey: string;
   constructor(
     @Inject('CLOUDINARY') private readonly cloudinary: typeof Cloudinary,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.accessId = this.getRequiredConfig('AWS_ACCESS_KEY_ID');
+    this.region = this.getRequiredConfig('AWS_REGION');
+    this.secretAccessKey = this.getRequiredConfig('AWS_SECRET_ACCESS_KEY');
+    this.bucketName = this.getRequiredConfig('AWS_S3_BUCKET');
+
+    this.s3 = new S3Client({
+      region: this.region,
+      credentials: {
+        accessKeyId: this.accessId,
+        secretAccessKey: this.secretAccessKey,
+      },
+    });
+  }
+
+  private getRequiredConfig(key: string): string {
+    const value = this.configService.get<string>(key);
+    if (!value) throw new Error(`${key} is missing`);
+    return value;
+  }
+
+  // Generate S3 URL
+  private getFileUrl(key: string) {
+    return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+  }
+
+  // ✅ Upload single file
+  async uploadFile(file: Express.Multer.File, folder: string) {
+    const key = `${folder}/${Date.now()}-${randomUUID()}-${file.originalname}`;
+
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      }),
+    );
+
+    return { key, url: this.getFileUrl(key) };
+  }
+
+  // ✅ Upload multiple files to folder
+  async uploadMultipleFiles(files: Express.Multer.File[], folder: string) {
+    return Promise.all(files.map((file) => this.uploadFile(file, folder)));
+  }
+
+  // ✅ Delete single file
+  async deleteFile(key: string) {
+    await this.s3.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      }),
+    );
+    return { deleted: key };
+  }
+
+  // ✅ Delete multiple files
+  async deleteFiles(keys: string[]) {
+    if (!keys.length) return { deleted: [] };
+
+    await this.s3.send(
+      new DeleteObjectsCommand({
+        Bucket: this.bucketName,
+        Delete: {
+          Objects: keys.map((key) => ({ Key: key })),
+        },
+      }),
+    );
+    return { deleted: keys };
+  }
+
+  // ✅ Update single file (delete old, upload new)
+  async updateFile(
+    oldKey: string,
+    newFile: Express.Multer.File,
+    folder: string,
+  ) {
+    // Delete old file
+    await this.deleteFile(oldKey);
+
+    // Upload new file
+    return this.uploadFile(newFile, folder);
+  }
+
+  // ✅ Update multiple files
+  async updateMultipleFiles(
+    oldKeys: string[],
+    newFiles: Express.Multer.File[],
+    folder: string,
+  ) {
+    // Delete all old files
+    await this.deleteFiles(oldKeys);
+
+    // Upload new files
+    return this.uploadMultipleFiles(newFiles, folder);
+  }
+
+  //cloudinary
 
   async uploadImage(
     file: Express.Multer.File,

@@ -14,9 +14,9 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { UploadApiResponse } from 'cloudinary';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { POSTS_IMAGE_FOLDER } from 'src/common/utils/constants/file.constant';
 import { multerConfig } from 'src/config/multer.config';
 import { RolesGuard } from '../admin/guards/role.gurad';
 import { MediaUploadService } from '../media-upload/media-upload.service';
@@ -42,12 +42,18 @@ export class PostsController {
     @CurrentUser() user: { userId: string },
     @UploadedFiles() images?: Express.Multer.File[],
   ) {
-    let result: UploadApiResponse[] | null = null;
+    // let result: UploadApiResponse[] | null = null;
+    let result: { key: string; url: string }[] | null = null;
     if (images && images?.length > 0) {
-      result = await Promise.all(
-        images.map((f) => this.mediaUploadService.uploadImage(f)),
+      // result = await Promise.all(
+      //   images.map((f) => this.mediaUploadService.uploadImage(f)),
+      // );
+      result = await this.mediaUploadService.uploadMultipleFiles(
+        images,
+        POSTS_IMAGE_FOLDER,
       );
     }
+    console.log(result, 'my resultt');
     return this.postsService.createPost(user.userId, data, result);
   }
 
@@ -140,10 +146,11 @@ export class PostsController {
     @Body() data: UpdatePostDto,
     @UploadedFiles() images?: Express.Multer.File[],
   ) {
-    let result: UploadApiResponse[] | null = null;
+    let result: { key: string; url: string }[] | null = null;
     if (images && images?.length > 0) {
-      result = await Promise.all(
-        images.map((f) => this.mediaUploadService.uploadImage(f)),
+      result = await this.mediaUploadService.uploadMultipleFiles(
+        images,
+        POSTS_IMAGE_FOLDER,
       );
     }
     return this.postsService.updatePost(postId, data, result);
