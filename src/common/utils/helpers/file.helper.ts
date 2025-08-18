@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { maxFileSize, validMimeTypes } from '../constants/file.constant';
+import { maxFileSize, validMimeTypes } from '../constants/config';
 
 export const validateFileUpload = (file: Express.Multer.File) => {
   if (!validMimeTypes.includes(file.mimetype)) {

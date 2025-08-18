@@ -7,10 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { UploadApiResponse } from 'cloudinary';
 import { Connection, Model, Types } from 'mongoose';
 import { NotificationsService } from 'src/notifications/notifications.service';
 
+import { USERS_AVATAR_FOLDER } from 'src/common/utils/constants/config';
 import { selectedFields } from 'src/common/utils/user.mapper';
 import { UserResponseDto } from '../../auth/dto/user-response.dto';
 import { GetUsersParams } from '../../auth/dto/user-types.dto';
@@ -189,14 +189,16 @@ export class UsersService {
 
     /* -------- handle cover image ------------------------------ */
     if (coverFile) {
-      const { secure_url, public_id } =
-        await this.mediaUploadService.uploadImage(coverFile, 'dee');
+      const { url, key } = await this.mediaUploadService.uploadFile(
+        coverFile,
+        USERS_AVATAR_FOLDER,
+      );
 
-      updates.cover_avatar = secure_url;
-      updates.cover_avatar_public_id = public_id;
+      updates.cover_avatar = url;
+      updates.cover_avatar_public_id = key;
 
       if (current.cover_avatar_public_id) {
-        await this.mediaUploadService.deleteImage(
+        await this.mediaUploadService.deleteFile(
           current.cover_avatar_public_id,
         );
       }
@@ -204,14 +206,16 @@ export class UsersService {
 
     /* -------- handle avatar ----------------------------------- */
     if (avatarFile) {
-      const { secure_url, public_id } =
-        await this.mediaUploadService.uploadImage(avatarFile, 'dee');
+      const { url, key } = await this.mediaUploadService.uploadFile(
+        avatarFile,
+        USERS_AVATAR_FOLDER,
+      );
 
-      updates.avatar = secure_url;
-      updates.avatar_public_id = public_id;
+      updates.avatar = url;
+      updates.avatar_public_id = key;
 
       if (current.avatar_public_id) {
-        await this.mediaUploadService.deleteImage(current.avatar_public_id);
+        await this.mediaUploadService.deleteFile(current.avatar_public_id);
       }
     }
 
@@ -251,7 +255,7 @@ export class UsersService {
 
       // 1️⃣ Delete user's avatar
       if (user.avatar_public_id) {
-        await this.mediaUploadService.deleteImage(user.avatar_public_id);
+        await this.mediaUploadService.deleteFile(user.avatar_public_id);
       }
 
       // 2️⃣ Get all posts by user
@@ -276,7 +280,7 @@ export class UsersService {
         ...commentImagePublicIds,
       ];
       if (allImagePublicIds.length > 0) {
-        await this.mediaUploadService.deleteImages(allImagePublicIds); // not in session
+        await this.mediaUploadService.deleteFiles(allImagePublicIds); // not in session
       }
 
       // 5️⃣ Delete posts
@@ -321,7 +325,7 @@ export class UsersService {
   async updateUserPhoto(
     id: string,
     fileType: string,
-    avatar: UploadApiResponse,
+    avatar: { url: string; key: string } | null,
   ) {
     const user = await this.userModel.findById(id);
     if (!user) {
@@ -331,16 +335,16 @@ export class UsersService {
     // Delete existing image if it exists
     if (fileType === 'profile_cover') {
       if (user.cover_avatar_public_id) {
-        await this.mediaUploadService.deleteImage(user.cover_avatar_public_id);
+        await this.mediaUploadService.deleteFile(user.cover_avatar_public_id);
       }
-      user.cover_avatar_public_id = avatar.public_id;
-      user.cover_avatar = avatar.secure_url;
+      user.cover_avatar_public_id = avatar?.key as string;
+      user.cover_avatar = avatar?.url as string;
     } else if (fileType === 'profile_photo') {
       if (user.avatar_public_id) {
-        await this.mediaUploadService.deleteImage(user.avatar_public_id);
+        await this.mediaUploadService.deleteFile(user.avatar_public_id);
       }
-      user.avatar_public_id = avatar.public_id;
-      user.avatar = avatar.secure_url;
+      user.avatar_public_id = avatar?.key as string;
+      user.avatar = avatar?.url as string;
     } else {
       throw new BadRequestException(
         'Invalid fileType. Expected profile_cover or profile_photo.',

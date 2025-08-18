@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
-import { UploadApiResponse } from 'cloudinary';
 import { Model, Types } from 'mongoose';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { MediaUploadService } from '../media-upload/media-upload.service';
@@ -33,7 +32,7 @@ export class CommentsService {
   async create(
     data: CreateCommentDto,
     currentUserId: string,
-    images?: UploadApiResponse[] | null,
+    images?: { url: string; key: string }[] | null,
   ) {
     const post = await this.postModel.findById(data.postId);
     if (!post) throw new NotFoundException('Post not found');
@@ -43,8 +42,8 @@ export class CommentsService {
 
     const formattedImages: CommentImage[] = Array.isArray(images)
       ? images.map((img) => ({
-          secure_url: img.secure_url,
-          public_id: img.public_id,
+          secure_url: img.url,
+          public_id: img.key,
         }))
       : [];
     const comment = new this.commentModel({
@@ -206,22 +205,28 @@ export class CommentsService {
   async updateComment(
     id: string,
     data: UpdateCommentDto,
-    newImages?: UploadApiResponse[] | null,
+    newImages?: { url: string; key: string }[] | null,
   ) {
     const comment = await this.commentModel.findById(id);
     if (!comment) throw new NotFoundException('Comment not found');
 
     console.log(data, 'the removaldata');
     // Delete removed images from cloud
-    if (data.removedImageIds && data.removedImageIds.length > 0) {
-      await this.mediaUploadService.deleteImages(data.removedImageIds);
+    if (data.removedImageIds) {
+      const removedIds = Array.isArray(data.removedImageIds)
+        ? data.removedImageIds
+        : [data.removedImageIds];
+
+      if (removedIds.length > 0) {
+        await this.mediaUploadService.deleteFiles(removedIds);
+      }
     }
 
     // Prepare new image data
     const uploadedImages: CommentImage[] =
       newImages?.map((res) => ({
-        secure_url: res.secure_url,
-        public_id: res.public_id,
+        secure_url: res.url,
+        public_id: res.key,
       })) ?? [];
 
     // Filter out removed originals

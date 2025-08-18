@@ -24,6 +24,7 @@ import {
 import { AuthService } from 'src/auth/auth.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { USERS_AVATAR_FOLDER } from 'src/common/utils/constants/config';
 import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from '../media-upload/media-upload.service';
@@ -134,7 +135,10 @@ export class UsersController {
     @Body(new ValidationPipe()) body: ProfileUploadTypeDto,
     @UploadedFile(AvatarValidationPipe) avatar: Express.Multer.File,
   ) {
-    const result = await this.mediaUploadService.uploadImage(avatar, 'dee');
+    const result = await this.mediaUploadService.uploadFile(
+      avatar,
+      USERS_AVATAR_FOLDER,
+    );
 
     return this.usersService.updateUserPhoto(id, body.fileType, result);
   }

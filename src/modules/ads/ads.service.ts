@@ -7,15 +7,26 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import axios from 'axios';
-import { UploadApiResponse } from 'cloudinary';
 import { Model, Types } from 'mongoose';
 import {
+  AD_PAYMENT_URL,
+  DASHBOARD_URL,
   PAYSTACK_BASE_URL,
   PAYSTACK_CALLBACK_URL,
+  VIEW_AD_URL,
 } from 'src/common/utils/constants/api-resources';
+import {
+  AD_ACTIVATION_EMAIL_SUBJECT,
+  AD_APROVAL_EMAIL_SUBJECT,
+  AD_REJECTION_EMAIL_SUBJECT,
+} from 'src/common/utils/constants/settings';
+import { capitalizeName } from 'src/common/utils/formatter';
 import { AdStatus } from 'src/common/utils/types/ad.types';
+import { MailService } from 'src/mail/mail.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { MediaUploadService } from '../media-upload/media-upload.service';
 import { RedisService } from '../storage/redis.service';
+import { User } from '../users/schemas/user.schema';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { Ad } from './schema/ad.schema';
 
@@ -27,8 +38,11 @@ export class AdsService {
   constructor(
     private readonly redisService: RedisService,
     @InjectModel(Ad.name) private readonly adModel: Model<Ad>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly notificationsService: NotificationsService,
     private readonly configService: ConfigService,
+    private readonly mediaUploadService: MediaUploadService,
+    private readonly mailService: MailService,
   ) {
     this.paystackSecretKey = this.configService.get<string>(
       'PAYSTACK_SECRET_KEY',
@@ -38,30 +52,66 @@ export class AdsService {
   private async setAdRotation(
     section: string,
     rotation: { index: number; ads: any[] },
+    ttlSeconds = 600, // default 10 minutes
   ) {
     const client = this.redisService.getClient();
-    await client.set(`ads:${section}`, JSON.stringify(rotation));
+    if (!client) {
+      // Redis unavailable → just skip caching
+      return;
+    }
+
+    try {
+      await client.set(`ads:${section}`, JSON.stringify(rotation), {
+        EX: ttlSeconds, // correct format in node-redis v4
+      });
+    } catch (err) {
+      console.error(`❌ Failed to set cache for ads:${section}`, err);
+    }
   }
 
   private async getAdRotation(
     section: string,
   ): Promise<{ index: number; ads: any[] } | null> {
     const client = this.redisService.getClient();
-    const data = await client.get(`ads:${section}`);
-    return data ? JSON.parse(data) : null;
+    if (!client) {
+      // Redis unavailable → no cache
+      return null;
+    }
+
+    try {
+      const data = await client.get(`ads:${section}`);
+      return data ? JSON.parse(data) : null;
+    } catch (err) {
+      console.error(`❌ Failed to get cache for ads:${section}`, err);
+      return null;
+    }
+  }
+
+  private async clearAdRotation(section: string) {
+    const client = this.redisService.getClient();
+    if (!client) {
+      // Redis unavailable → nothing to clear
+      return;
+    }
+
+    try {
+      await client.del(`ads:${section}`);
+    } catch (err) {
+      console.error(`❌ Failed to clear cache for ads:${section}`, err);
+    }
   }
 
   /* Create: author is the current user */
   async createAd(
     author: string,
     dto: CreateAdDto,
-    image?: UploadApiResponse | null,
+    image?: { url: string; key: string } | null,
   ) {
     const ad = new this.adModel({
       ...dto,
       owner: new Types.ObjectId(author),
-      imageUrl: image?.secure_url ?? null,
-      image_public_id: image?.public_id ?? null,
+      imageUrl: image?.url ?? null,
+      image_public_id: image?.key ?? null,
     });
     const savedAd = await ad.save();
 
@@ -203,6 +253,24 @@ export class AdsService {
     });
 
     // TODO: Add email notification logic here
+    const theOwner = await this.userModel.findById(adOwnerId);
+    if (theOwner) {
+      const link = DASHBOARD_URL;
+      await this.mailService.sendWith(
+        'ses',
+        theOwner.email,
+        AD_REJECTION_EMAIL_SUBJECT,
+        'ad-rejection',
+        {
+          name: capitalizeName(theOwner.username),
+          email: theOwner.email,
+          link: link,
+          year: new Date().getFullYear(),
+          reason: reason,
+          adTitle: capitalizeName(ad.title),
+        },
+      );
+    }
 
     return {
       code: '200',
@@ -213,11 +281,13 @@ export class AdsService {
 
   async approveAd(id: string, adOwnerId: string) {
     try {
-      const ad = await this.adModel.findByIdAndUpdate(
-        id,
-        { status: AdStatus.APPROVED, approvedDate: new Date() },
-        { new: true },
-      );
+      const ad = await this.adModel
+        .findByIdAndUpdate(
+          id,
+          { status: AdStatus.APPROVED, approvedDate: new Date() },
+          { new: true },
+        )
+        .populate('owner');
 
       if (!ad) throw new NotFoundException('Ad not found');
 
@@ -230,6 +300,28 @@ export class AdsService {
       });
 
       // email action here
+
+      if (ad.owner) {
+        const theOwner: any = ad.owner;
+        const link = `${AD_PAYMENT_URL}/${ad._id}`;
+        await this.mailService.sendWith(
+          'ses',
+          theOwner.email,
+          AD_APROVAL_EMAIL_SUBJECT,
+          'ad-approval',
+          {
+            advertiserName: theOwner.username,
+            email: theOwner.email,
+            link: link,
+            year: new Date().getFullYear(),
+            sectionName: ad.section,
+            adType: ad.type,
+            paymentAmount: ad.price,
+            paymentUrl: link,
+            adTitle: ad.title,
+          },
+        );
+      }
 
       return { code: '200', message: 'Ad approved', ad };
     } catch (error) {
@@ -268,7 +360,7 @@ export class AdsService {
   async activateAd(id: string, adOwnerId: string) {
     try {
       // Fetch ad first to get duration
-      const adData = await this.adModel.findById(id);
+      const adData = await this.adModel.findById(id).populate('owner');
       if (!adData) throw new NotFoundException('Ad not found');
 
       const activatedDate = new Date();
@@ -285,7 +377,7 @@ export class AdsService {
         },
         { new: true },
       );
-
+      await this.clearAdRotation(adData.section.toLowerCase());
       // Notify user
       await this.notificationsService.createNotification({
         recipient: adOwnerId.toString(),
@@ -295,6 +387,24 @@ export class AdsService {
       });
 
       // email action here
+      if (adData.owner) {
+        const theOwner: any = adData.owner;
+        const link = VIEW_AD_URL;
+        await this.mailService.sendWith(
+          'ses',
+          theOwner.email,
+          AD_ACTIVATION_EMAIL_SUBJECT,
+          'ad-activation',
+          {
+            name: capitalizeName(theOwner.username),
+            email: theOwner.email,
+            link: link,
+            year: new Date().getFullYear(),
+            sectionName: adData.section,
+            adTitle: capitalizeName(adData.title),
+          },
+        );
+      }
 
       return { code: '200', message: 'Ad activated', ad };
     } catch (error) {
@@ -312,7 +422,7 @@ export class AdsService {
       );
 
       if (!ad) throw new NotFoundException('Ad not found');
-
+      await this.clearAdRotation(ad.section.toLowerCase());
       // Notify user
       await this.notificationsService.createNotification({
         recipient: adOwnerId.toString(),
@@ -339,6 +449,7 @@ export class AdsService {
       );
 
       if (!ad) throw new NotFoundException('Ad not found');
+      await this.clearAdRotation(ad.section.toLowerCase());
 
       return { code: '200', message: 'Ad resumed', ad };
     } catch (error) {
@@ -347,9 +458,24 @@ export class AdsService {
     }
   }
 
-  async deleteAd(id: string) {
+  async deleteAd2(id: string) {
     const res = await this.adModel.deleteOne({ _id: id });
     if (res.deletedCount === 0) throw new NotFoundException('Ad not found');
+    return { deleted: true };
+  }
+
+  async deleteAd(id: string) {
+    const ad = await this.adModel.findById(id);
+    if (!ad) throw new NotFoundException('Ad not found');
+
+    // Delete from DB
+    await this.adModel.deleteOne({ _id: id });
+
+    if (ad.image_public_id) {
+      await this.mediaUploadService.deleteFile(ad.image_public_id);
+    }
+    // Clear Redis cache for this section
+    await this.clearAdRotation(ad.section.toLowerCase());
     return { deleted: true };
   }
 

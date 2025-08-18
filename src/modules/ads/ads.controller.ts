@@ -16,9 +16,9 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { UploadApiResponse } from 'cloudinary';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ADS_IMAGE_FOLDER } from 'src/common/utils/constants/config';
 import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { AdStatus } from 'src/common/utils/types/ad.types';
 import { multerConfig } from 'src/config/multer.config';
@@ -42,10 +42,13 @@ export class AdsController {
     @CurrentUser() user: { userId: string },
     @UploadedFile(AvatarValidationPipe) image?: Express.Multer.File,
   ) {
-    let result: UploadApiResponse | null = null;
+    let result: { key: string; url: string } | null = null;
 
     if (image) {
-      result = await this.mediaUploadService.uploadImage(image);
+      result = await this.mediaUploadService.uploadFile(
+        image,
+        ADS_IMAGE_FOLDER,
+      );
     }
 
     return this.adsService.createAd(user.userId, dto, result);

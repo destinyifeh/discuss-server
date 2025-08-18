@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ScheduleModule } from '@nestjs/schedule';
 import { Post, PostSchema } from '../posts/schema/post.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Ad, AdSchema } from './../ads/schema/ad.schema';
@@ -16,7 +15,6 @@ import { UnsuspendCron } from './schedulers/unsuspend.cron';
       { name: Post.name, schema: PostSchema },
       { name: Ad.name, schema: AdSchema },
     ]),
-    ScheduleModule.forRoot(),
   ],
   providers: [AdminService, UnsuspendCron],
   controllers: [AdminController],

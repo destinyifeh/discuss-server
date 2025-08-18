@@ -3,7 +3,7 @@ import {
   HttpStatus,
   ParseFilePipeBuilder,
 } from '@nestjs/common';
-import { maxFileSize } from '../constants/file.constant';
+import { maxFileSize } from '../constants/config';
 
 export const AvatarValidationPipe = new ParseFilePipeBuilder()
   .addMaxSizeValidator({

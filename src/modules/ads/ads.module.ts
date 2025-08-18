@@ -6,6 +6,7 @@ import { NotificationsModule } from 'src/notifications/notifications.module';
 import { MediaUploadModule } from '../media-upload/media-upload.module';
 import { RedisModule } from '../storage/redis.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { AdsCleanupService } from './ads-cleanup.cron';
 import { AdsController } from './ads.controller';
 import { AdsService } from './ads.service';
 import { Ad, AdSchema } from './schema/ad.schema';
@@ -23,7 +24,7 @@ import { Ad, AdSchema } from './schema/ad.schema';
     ConfigModule,
   ],
   controllers: [AdsController],
-  providers: [AdsService],
+  providers: [AdsService, AdsCleanupService],
   exports: [AdsService],
 })
 export class AdsModule {}

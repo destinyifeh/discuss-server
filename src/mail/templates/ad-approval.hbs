@@ -1,0 +1,147 @@
+<!-- Subject: Your Ad Is Approved – Complete Payment to Activate -->
+
+<html lang='en'>
+  <head>
+    <meta charset='utf-8' />
+    <meta name='viewport' content='width=device-width' />
+    <title>Ad Approved - Payment Required</title>
+  </head>
+  <body style='margin:0; padding:0; background:#f5f7fb;'>
+    <table
+      role='presentation'
+      cellspacing='0'
+      cellpadding='0'
+      border='0'
+      width='100%'
+      style='background:#f5f7fb;'
+    >
+      <tr>
+        <td align='center' style='padding:24px;'>
+          <table
+            role='presentation'
+            width='600'
+            cellspacing='0'
+            cellpadding='0'
+            border='0'
+            style='width:600px; max-width:100%;'
+          >
+
+            <!-- Header -->
+            <tr>
+              <td align='left' style='padding:24px 12px;'>
+                <img src='{{logoUrl}}' width='140' alt='Discussday' />
+              </td>
+            </tr>
+
+            <!-- Main Card -->
+            <tr>
+              <td style='background:#ffffff; border-radius:12px; padding:24px;'>
+                <h2
+                  style='font-family:Arial,Helvetica,sans-serif; font-size:20px; color:#0f172a; margin:0 0 12px;'
+                >
+                  ✅ Your Ad Has Been Approved
+                </h2>
+                <p
+                  style='font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#334155; line-height:1.6; margin:0 0 16px;'
+                >
+                  Hi
+                  <strong
+                    style='text-transform:capitalize'
+                  >{{advertiserName}}</strong>,
+                </p>
+                <p
+                  style='font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#334155; line-height:1.6; margin:0 0 16px;'
+                >
+                  Good news! Your ad
+                  <strong>“{{adTitle}}”</strong>
+                  has been reviewed and approved. To activate it and make it
+                  visible on
+                  <strong>Discussday</strong>, please complete your payment.
+                </p>
+
+                <!-- Ad details -->
+                <table
+                  role='presentation'
+                  cellspacing='0'
+                  cellpadding='0'
+                  border='0'
+                  width='100%'
+                  style='margin:16px 0;'
+                >
+                  <tr>
+                    <td
+                      style='font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#475569; padding:6px 0;'
+                    >
+                      <strong
+                        style='text-transform:capitalize'
+                      >Section:</strong>
+                      {{sectionName}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style='font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#475569; padding:6px 0;'
+                    >
+                      <strong style='text-transform:capitalize'>Type:</strong>
+                      {{adType}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style='font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#475569; padding:6px 0;'
+                    >
+                      <strong>Amount Due:</strong>
+                      {{paymentAmount}}
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- CTA Button -->
+                <table
+                  role='presentation'
+                  cellspacing='0'
+                  cellpadding='0'
+                  border='0'
+                  style='margin:16px 0;'
+                >
+                  <tr>
+                    <td>
+                      <a
+                        href='{{paymentUrl}}'
+                        style='background:#0a66c2; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px; font-family:Arial,Helvetica,sans-serif; font-size:14px; display:inline-block;'
+                      >
+                        Complete Payment
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Note -->
+                <p
+                  style='font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#64748b; line-height:1.5; margin:16px 0 0;'
+                >
+                  Once your payment is confirmed, your ad will be automatically
+                  activated and start running in the selected section.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align='center' style='padding:16px;'>
+                <p
+                  style='font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#94a3b8; margin:0;'
+                >
+                  ©
+                  {{year}}
+                  Discussday. All rights reserved.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

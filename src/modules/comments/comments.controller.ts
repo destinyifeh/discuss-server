@@ -16,8 +16,8 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 
-import { UploadApiResponse } from 'cloudinary';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { COMMENTS_IMAGE_FOLDER } from 'src/common/utils/constants/config';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto, UpdateCommentDto } from './dto/create-comment.dto';
 @UseGuards(JwtAuthGuard)
@@ -43,10 +43,11 @@ export class CommentsController {
       ...body,
       quotedComment: parsedQuotedComment,
     };
-    let result: UploadApiResponse[] | null = null;
+    let result: { key: string; url: string }[] | null = null;
     if (images && images?.length > 0) {
-      result = await Promise.all(
-        images.map((f) => this.mediaUploadService.uploadImage(f)),
+      result = await this.mediaUploadService.uploadMultipleFiles(
+        images,
+        COMMENTS_IMAGE_FOLDER,
       );
       console.log(result, 'resultttt');
       console.log(images, 'resultttimagert');
@@ -98,10 +99,11 @@ export class CommentsController {
     @Body() data: UpdateCommentDto,
     @UploadedFiles() images?: Express.Multer.File[],
   ) {
-    let result: UploadApiResponse[] | null = null;
+    let result: { key: string; url: string }[] | null = null;
     if (images && images?.length > 0) {
-      result = await Promise.all(
-        images.map((f) => this.mediaUploadService.uploadImage(f)),
+      result = await this.mediaUploadService.uploadMultipleFiles(
+        images,
+        COMMENTS_IMAGE_FOLDER,
       );
     }
     return this.commentService.updateComment(commentId, data, result);

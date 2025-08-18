@@ -26,25 +26,38 @@ export class MailService {
         pass: process.env.SENDGRID_API_KEY,
       },
     }),
-    mailgun: nodemailer.createTransport({
-      host: 'smtp.mailgun.org',
-      port: 587,
+    ses: nodemailer.createTransport({
+      host: process.env.SES_HOST,
+      port: Number(process.env.SES_PORT),
+      secure: false, // true for port 465, false for 587
       auth: {
-        user: 'postmaster@' + process.env.MAILGUN_DOMAIN,
-        pass: process.env.MAILGUN_PASS,
+        user: process.env.SES_USER,
+        pass: process.env.SES_PASS,
       },
     }),
   };
 
-  private compileTemplate(templateName: string, context: any): string {
+  private compileTemplate2(templateName: string, context: any): string {
     const filePath = join(__dirname, 'templates', `${templateName}.hbs`);
+    const source = readFileSync(filePath, 'utf8');
+    const template = hbs.compile(source);
+    return template(context);
+  }
+  private compileTemplate(templateName: string, context: any): string {
+    const filePath = join(
+      process.cwd(),
+      'src',
+      'mail',
+      'templates',
+      `${templateName}.hbs`,
+    );
     const source = readFileSync(filePath, 'utf8');
     const template = hbs.compile(source);
     return template(context);
   }
 
   async sendWith(
-    provider: 'gmail' | 'sendgrid' | 'mailgun',
+    provider: 'gmail' | 'sendgrid' | 'ses',
     to: string,
     subject: string,
     template: string,
@@ -54,7 +67,10 @@ export class MailService {
 
     const res = await this.transporters[provider].sendMail({
       to,
-      from: `Discussday <noreply.${process.env.GMAIL_EMAIL}>`,
+      from:
+        provider === 'ses'
+          ? 'destechofficial@gmail.com'
+          : `Discussday <noreply.${process.env.GMAIL_EMAIL}>`,
       subject,
       html,
     });

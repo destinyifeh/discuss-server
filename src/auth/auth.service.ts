@@ -10,7 +10,6 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
-import { UploadApiResponse } from 'cloudinary';
 import { randomBytes } from 'crypto';
 import { Response } from 'express';
 import { Model } from 'mongoose';
@@ -223,7 +222,7 @@ export class AuthService {
     // Choose ONE mailer
     // await this.mailerService.sendResetEmail(email, token);
     const link = generateUrlTokenLink(token);
-    await this.mailService.sendWith('gmail', email, 'Hello!', 'forgot-pass', {
+    await this.mailService.sendWith('ses', email, 'Hello!', 'forgot-pass', {
       username: user.username,
       email: user.email,
       link: link,
@@ -246,7 +245,10 @@ export class AuthService {
     return { code: HttpStatus.OK, message: 'Password reset successful' };
   }
 
-  async registerUser(data: CreateUserDto, avatar?: UploadApiResponse | null) {
+  async registerUser(
+    data: CreateUserDto,
+    avatar?: { url: string; key: string } | null,
+  ) {
     try {
       console.log('Data:', data);
 
@@ -268,8 +270,8 @@ export class AuthService {
       const createdUser = new this.userModel({
         ...data,
         password: hashedPassword,
-        avatar: avatar?.secure_url ?? null,
-        avatar_public_id: avatar?.public_id ?? null,
+        avatar: avatar?.url ?? null,
+        avatar_public_id: avatar?.key ?? null,
       });
 
       const savedUser = await createdUser.save();

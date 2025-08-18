@@ -15,8 +15,8 @@ import {
 } from '@nestjs/common';
 
 import { FileInterceptor } from '@nestjs/platform-express';
-import { UploadApiResponse } from 'cloudinary';
 import { Request, Response } from 'express';
+import { USERS_AVATAR_FOLDER } from 'src/common/utils/constants/config';
 import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from './../modules/media-upload/media-upload.service';
@@ -89,10 +89,12 @@ export class AuthController {
     @Body() data: CreateUserDto,
     @UploadedFile(AvatarValidationPipe) avatar?: Express.Multer.File,
   ) {
-    let result: UploadApiResponse | null = null;
-
+    let result: { key: string; url: string } | null = null;
     if (avatar) {
-      result = await this.mediaUploadService.uploadImage(avatar);
+      result = await this.mediaUploadService.uploadFile(
+        avatar,
+        USERS_AVATAR_FOLDER,
+      );
     }
     return this.authService.registerUser(data, result);
   }

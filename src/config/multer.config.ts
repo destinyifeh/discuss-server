@@ -2,10 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 
 import * as multer from 'multer';
 import { extname } from 'path';
-import {
-  maxFileSize,
-  validMimeTypes,
-} from 'src/common/utils/constants/file.constant';
+import { maxFileSize, validMimeTypes } from 'src/common/utils/constants/config';
 
 function fileFilter(req, file, cb) {
   if (!validMimeTypes.includes(file.mimetype)) {
