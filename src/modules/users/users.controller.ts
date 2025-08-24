@@ -7,6 +7,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   Put,
   Query,
   UploadedFile,
@@ -29,7 +30,7 @@ import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 import { ProfileUploadTypeDto } from './dto/profile-upload-type.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { MailUserDto, UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
 @Controller('user')
@@ -60,19 +61,15 @@ export class UsersController {
       joinedBefore,
     });
   }
-
-  @Get('user/:id')
-  getUser(@Param('id') id: string) {
-    return this.usersService.getUser(id);
+  @UseGuards(JwtAuthGuard)
+  @Post('mail')
+  mailUser(@CurrentUser() user: { userId: string }, @Body() dto: MailUserDto) {
+    return this.usersService.mailUser(dto);
   }
+
   @Get('users')
   getUsers() {
     return this.usersService.getUsers();
-  }
-
-  @Delete('user/:id')
-  deleteUser(@Param('id') id: string) {
-    return this.usersService.deleteUser(id);
   }
 
   @Patch('profile-update')
@@ -118,6 +115,16 @@ export class UsersController {
     return this.usersService.doesUserExistByUsername(username);
   }
 
+  @Get('user/:id')
+  getUser(@Param('id') id: string) {
+    return this.usersService.getUser(id);
+  }
+
+  @Delete('user/:id')
+  deleteUser(@Param('id') id: string) {
+    return this.usersService.deleteUser(id);
+  }
+
   //protected route
   @UseGuards(JwtAuthGuard)
   @Get(':username')
@@ -161,13 +168,21 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':username/following')
-  async getFollowing(@Param('username') username: string) {
-    return this.usersService.getFollowing(username);
+  async getFollowing(
+    @Param('username') username: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.usersService.getFollowing(username, page, limit);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get(':username/followers')
-  async getFollowers(@Param('username') username: string) {
-    return this.usersService.getFollowers(username);
+  async getFollowers(
+    @Param('username') username: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.usersService.getFollowers(username, page, limit);
   }
 }

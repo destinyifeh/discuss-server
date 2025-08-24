@@ -22,6 +22,14 @@ export class ReportsService {
       post: new Types.ObjectId(data.post),
       reportedBy: new Types.ObjectId(data.reportedBy),
     });
+
+    await this.notificationsService.createNotification({
+      type: 'admin',
+      message: 'content reported',
+      content: `A post was reported for inappropriate content`,
+      senderName: 'System',
+    });
+
     return {
       code: '200',
       message: 'Post has been reported',
@@ -36,6 +44,12 @@ export class ReportsService {
       reportedBy: new Types.ObjectId(data.reportedBy),
     });
 
+    await this.notificationsService.createNotification({
+      type: 'admin',
+      message: 'comment reported',
+      content: `A comment was reported for inappropriate content`,
+      senderName: 'System',
+    });
     return {
       code: '200',
       message: 'Comment has been reported',
@@ -50,6 +64,12 @@ export class ReportsService {
       reportedBy: new Types.ObjectId(data.reportedBy),
     });
 
+    await this.notificationsService.createNotification({
+      type: 'admin',
+      message: 'Ad reported',
+      content: `Ad was reported for inappropriate content`,
+      senderName: 'System',
+    });
     return {
       code: '200',
       message: 'Ad has been reported',
@@ -64,6 +84,13 @@ export class ReportsService {
       reportedBy: new Types.ObjectId(data.reportedBy),
     });
 
+    await this.notificationsService.createNotification({
+      type: 'admin',
+      message: 'User reported',
+      content: `A user was reported`,
+      senderName: 'System',
+    });
+
     return {
       code: '200',
       message: 'User has been reported',
@@ -76,6 +103,13 @@ export class ReportsService {
       type: ReportType.ABUSE,
       ...data,
       reportedBy: new Types.ObjectId(data.reportedBy),
+    });
+
+    await this.notificationsService.createNotification({
+      type: 'admin',
+      message: 'Abuse reported',
+      content: `An abuse was reported`,
+      senderName: 'System',
     });
     return {
       code: '200',

@@ -13,6 +13,7 @@ import {
   CreatePostDto,
   GetPostsParams,
   PostImage,
+  PostStatus,
   UpdatePostDto,
   UserPostType,
 } from './dto/create-post.dto';
@@ -687,5 +688,33 @@ export class PostsService {
         },
       },
     };
+  }
+
+  async promotePost(id: string) {
+    const post = await this.postModel.findByIdAndUpdate(
+      id,
+      { status: PostStatus.PROMOTED },
+      { new: true },
+    );
+
+    if (!post) {
+      throw new NotFoundException(`Post with id ${id} not found`);
+    }
+
+    return { code: '200', message: 'Post promoted', post };
+  }
+
+  async demotePost(id: string) {
+    const post = await this.postModel.findByIdAndUpdate(
+      id,
+      { status: PostStatus.PUBLISHED },
+      { new: true },
+    );
+
+    if (!post) {
+      throw new NotFoundException(`Post with id ${id} not found`);
+    }
+
+    return { code: '200', message: 'Post demoted', post };
   }
 }

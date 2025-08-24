@@ -11,7 +11,8 @@ export class CreateNotificationDto {
     | 'ad_approved'
     | 'ad_rejected'
     | 'ad_paused'
-    | 'ad_activated';
+    | 'ad_activated'
+    | 'admin';
 
   @IsString()
   content: string;
@@ -26,4 +27,8 @@ export class CreateNotificationDto {
   @IsOptional()
   @IsString()
   senderAvatar?: string;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
 }

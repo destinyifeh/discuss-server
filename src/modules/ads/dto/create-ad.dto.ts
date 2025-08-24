@@ -56,6 +56,11 @@ enum AdCTA {
   StartNow = 'Start Now',
 }
 
+export type AdPlacementProps =
+  | 'homepage_feed'
+  | 'details_feed'
+  | 'section_feed';
+
 class AuthorDto {
   @IsString()
   id: string;

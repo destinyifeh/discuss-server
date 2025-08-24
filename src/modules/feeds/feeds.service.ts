@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Ad } from '../ads/schema/ad.schema';
 import { Comment } from '../comments/schema/comment.schema';
+import { PostStatus } from '../posts/dto/create-post.dto';
 import { Post } from '../posts/schema/post.schema';
 import { FeedQuery } from './dto/feeds.dto';
 
@@ -44,6 +45,7 @@ export class FeedsService {
     search,
     onlyBookmarked,
     theCurrentUserId,
+    placement,
   }: {
     section?: string;
     page: number;
@@ -51,15 +53,19 @@ export class FeedsService {
     search?: string;
     onlyBookmarked?: boolean;
     theCurrentUserId: string;
+    placement?: string;
   }) {
     const skip = (page - 1) * limit;
     const query: any = {};
 
     if (section) {
-      query.section = section;
+      query.section = { $regex: new RegExp(`^${section}$`, 'i') };
     }
     if (onlyBookmarked && theCurrentUserId) {
       query.bookmarkedBy = theCurrentUserId;
+    }
+    if (placement === 'homepage_feed') {
+      query.status = PostStatus.PROMOTED;
     }
 
     if (search) {
@@ -80,13 +86,14 @@ export class FeedsService {
 
   private async fetchActiveAds(arg?: FeedQuery) {
     const filter: any = { status: 'active', type: 'sponsored' };
-    if (arg?.section) {
-      filter.section = arg.section;
+    if (arg?.placement === 'homepage_feed') {
+      filter.plan = 'enterprise';
     }
-    if (arg?.adPlan === 'enterprise') {
+    if (arg?.placement === 'details_feed') {
       filter.plan = { $in: ['enterprise', 'professional'] };
-    } else if (arg?.adPlan) {
-      filter.plan = arg.adPlan;
+    }
+    if (arg?.placement === 'section_feed') {
+      filter.section = arg.section;
     }
     return this.adModel
       .find(filter)
@@ -240,6 +247,7 @@ export class FeedsService {
   }
 
   private patternMerge(posts: any[], ads: any[], pattern: string = '4, 9, 15') {
+    console.log(pattern, 'patooo');
     // Shuffle ads
     for (let i = ads.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));

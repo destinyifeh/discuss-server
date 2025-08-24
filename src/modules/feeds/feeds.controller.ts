@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { AdPlacementProps } from '../ads/dto/create-ad.dto';
 import { AdPlan } from './dto/feeds.dto';
 import { FeedsService } from './feeds.service';
 @UseGuards(JwtAuthGuard)
@@ -31,6 +32,7 @@ export class FeedsController {
   async unifiedFeed(
     @CurrentUser() user: { userId: string },
     @Query('mode') mode: 'random' | 'after5' | 'pattern' = 'after5',
+    @Query('placement') placement?: AdPlacementProps,
     @Query('section') section?: string,
     @Query('pattern') pattern?: string, // only for mode=pattern
     @Query('search') search?: string,
@@ -50,6 +52,7 @@ export class FeedsController {
     const theCurrentUserId = user.userId;
     const posts = await this.feedService.buildFeed({
       mode,
+      placement,
       section,
       page,
       limit,
@@ -80,6 +83,7 @@ export class FeedsController {
   @Get('random')
   random(
     @CurrentUser() user: { userId: string },
+    @Query('placement') placement?: AdPlacementProps,
     @Query('section') s?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) p = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) l = 20,
@@ -87,6 +91,7 @@ export class FeedsController {
     const theCurrentUserId = user.userId;
     return this.feedService.buildFeed({
       theCurrentUserId,
+      placement,
       mode: 'random',
       section: s,
       page: p,
@@ -97,6 +102,7 @@ export class FeedsController {
   @Get('after5')
   after5(
     @CurrentUser() user: { userId: string },
+    @Query('placement') placement?: AdPlacementProps,
     @Query('section') s?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) p = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) l = 20,
@@ -104,6 +110,7 @@ export class FeedsController {
     const theCurrentUserId = user.userId;
     return this.feedService.buildFeed({
       theCurrentUserId,
+      placement,
       mode: 'after5',
       section: s,
       page: p,
@@ -115,6 +122,7 @@ export class FeedsController {
   async unifiedCommentFeed(
     @CurrentUser() user: { userId: string },
     @Param('postId') postId: string,
+    @Query('placement') placement?: AdPlacementProps,
     @Query('mode') mode: 'random' | 'after5' | 'pattern' = 'after5',
     @Query('adPlan') adPlan?: AdPlan,
     @Query('pattern') pattern?: string, // only for mode=pattern
@@ -124,6 +132,7 @@ export class FeedsController {
     const theCurrentUserId = user.userId;
     const comments = await this.feedService.buildCommentFeed({
       theCurrentUserId,
+      placement,
       mode,
       adPlan,
       page,
@@ -158,12 +167,14 @@ export class FeedsController {
   @Get('random')
   getRandomInterleave(
     @CurrentUser() user: { userId: string },
+    @Query('placement') placement?: AdPlacementProps,
     @Query('section') section?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
   ) {
     const theCurrentUserId = user.userId;
     return this.feedService.randomFeed({
+      placement,
       section,
       page,
       limit,
@@ -174,12 +185,14 @@ export class FeedsController {
   @Get('after5')
   getFixedInterleave(
     @CurrentUser() user: { userId: string },
+    @Query('placement') placement?: AdPlacementProps,
     @Query('section') section?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
   ) {
     const theCurrentUserId = user.userId;
     return this.feedService.afterFiveFeed({
+      placement,
       section,
       page,
       limit,

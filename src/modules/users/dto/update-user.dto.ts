@@ -21,3 +21,23 @@ export class UpdateUserDto {
   @IsString()
   dob?: string;
 }
+
+export class MailUserDto {
+  @IsString()
+  username: string;
+
+  @IsString()
+  email: string;
+
+  @IsString()
+  senderName: string;
+
+  @IsString()
+  senderEmail: string;
+
+  @IsString()
+  message: string;
+
+  @IsString()
+  subject: string;
+}

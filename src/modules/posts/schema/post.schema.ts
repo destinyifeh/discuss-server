@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { PostImage } from '../dto/create-post.dto';
+import { PostImage, PostStatus } from '../dto/create-post.dto';
 
 export type PostDocument = HydratedDocument<Post>;
 
@@ -14,6 +14,9 @@ export class Post {
 
   @Prop()
   title: string;
+
+  @Prop({ enum: PostStatus, default: PostStatus.PUBLISHED })
+  status: PostStatus;
 
   @Prop({ required: true })
   content: string;

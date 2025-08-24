@@ -16,6 +16,7 @@ export class Notification {
       'ad_rejected',
       'ad_paused',
       'ad_activated',
+      'admin',
     ],
     required: true,
   })
@@ -30,13 +31,16 @@ export class Notification {
   @Prop({ required: true })
   content: string;
 
+  @Prop()
+  message: string;
+
   //   @Prop({ type: Types.ObjectId, ref: 'Post', required: false })
   //   postId?: Types.ObjectId;
 
   @Prop({ default: false })
   read: boolean;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
   recipient: Types.ObjectId;
 }
 

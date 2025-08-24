@@ -24,7 +24,7 @@ import { AdStatus } from 'src/common/utils/types/ad.types';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from './../media-upload/media-upload.service';
 import { AdsService } from './ads.service';
-import { CreateAdDto } from './dto/create-ad.dto';
+import { AdPlacementProps, CreateAdDto } from './dto/create-ad.dto';
 
 @Controller('ad')
 export class AdsController {
@@ -103,8 +103,11 @@ export class AdsController {
   }
 
   @Get('banner-ads')
-  async getBannerAds(@Query('section') section: string) {
-    return this.adsService.getBannerAds(section);
+  async getBannerAds(
+    @Query('placement') placement: AdPlacementProps,
+    @Query('section') section?: string,
+  ) {
+    return this.adsService.getBannerAds(placement, section);
   }
 
   @Get(':id')

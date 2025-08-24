@@ -11,13 +11,15 @@ import { Connection, Model, Types } from 'mongoose';
 import { NotificationsService } from 'src/notifications/notifications.service';
 
 import { USERS_AVATAR_FOLDER } from 'src/common/utils/constants/config';
+import { capitalizeName } from 'src/common/utils/formatter';
 import { selectedFields } from 'src/common/utils/user.mapper';
+import { MailService } from 'src/mail/mail.service';
 import { UserResponseDto } from '../../auth/dto/user-response.dto';
 import { GetUsersParams } from '../../auth/dto/user-types.dto';
 import { Comment } from '../comments/schema/comment.schema';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 import { Post } from '../posts/schema/post.schema';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { MailUserDto, UpdateUserDto } from './dto/update-user.dto';
 import { User } from './schemas/user.schema';
 
 @Injectable()
@@ -25,6 +27,7 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly mediaUploadService: MediaUploadService,
+    private readonly mailService: MailService,
     private readonly notificationService: NotificationsService,
     @InjectModel(Post.name) private readonly postModel: Model<Post>,
     @InjectModel(Comment.name) private readonly commentModel: Model<Comment>,
@@ -451,38 +454,102 @@ export class UsersService {
     };
   }
 
-  async getFollowing(username: string) {
+  async getFollowing(username: string, page: number, limit: number) {
+    // Find the user and only fetch their following IDs
     const user = await this.userModel
       .findOne({ username })
       .select('following _id')
-      .populate('following', 'username avatar') // choose fields
-      .lean();
+      .lean()
+      .exec();
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    console.log(user, 'user followings...');
+
+    // Total followings for pagination
+    const total = user.following.length;
+
+    // Apply pagination to the following list
+    const paginatedFollowing = await this.userModel
+      .find({ _id: { $in: user.following } })
+      .select('username avatar')
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec();
+
     return {
       code: '200',
-      userId: user?._id,
-      following: user?.following || [],
+      message: 'Following retrieved successfully',
+      data: {
+        following: paginatedFollowing,
+        pagination: {
+          totalItems: total,
+          userId: user._id,
+          page,
+          pages: Math.ceil(total / limit),
+          limit,
+        },
+      },
     };
   }
 
-  async getFollowers(username: string) {
+  async getFollowers(username: string, page: number, limit: number) {
+    // Find the user and only fetch their following IDs
     const user = await this.userModel
       .findOne({ username })
       .select('followers _id')
-      .populate('followers', 'username avatar') // choose fields
-      .lean();
+      .lean()
+      .exec();
 
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-    console.log(user, 'userrr');
+    // Total followings for pagination
+    const total = user.followers.length;
+
+    // Apply pagination to the followers list
+    const paginatedFollowing = await this.userModel
+      .find({ _id: { $in: user.followers } })
+      .select('username avatar')
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec();
+
     return {
       code: '200',
-      userId: user?._id,
-      followers: user?.followers || [],
+      message: 'Followers retrieved successfully',
+      data: {
+        followers: paginatedFollowing,
+        pagination: {
+          totalItems: total,
+          userId: user._id,
+          page,
+          pages: Math.ceil(total / limit),
+          limit,
+        },
+      },
     };
+  }
+
+  async mailUser(data: MailUserDto) {
+    await this.mailService.sendWith(
+      'ses',
+      data.email,
+      data.subject,
+      'mail-user',
+      {
+        recipientName: capitalizeName(data.username),
+        recipientEmail: data.email,
+        messageContent: data.message,
+        senderName: capitalizeName(data.senderName),
+        senderEmail: data.senderEmail,
+        appName: 'Discussday',
+      },
+    );
+
+    return { code: HttpStatus.OK, message: 'Email delivered successfully' };
   }
 }

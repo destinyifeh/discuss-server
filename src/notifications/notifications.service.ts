@@ -22,7 +22,7 @@ export class NotificationsService {
   async createNotification(data: CreateNotificationDto) {
     const notification = new this.notificationModel({
       ...data,
-      recipient: new Types.ObjectId(data.recipient),
+      ...(data.recipient && { recipient: new Types.ObjectId(data.recipient) }),
     });
     await notification.save();
     return {
@@ -122,5 +122,15 @@ export class NotificationsService {
       code: '200',
       unreadData: unreadCount > 0 ? unreadCount : null,
     };
+  }
+
+  async getSystemNotifications() {
+    const notifications = await this.notificationModel
+      .find({ type: 'admin' })
+      .sort({ createdAt: -1 })
+      .lean()
+      .limit(5);
+
+    return { code: '200', systemNotifications: notifications };
   }
 }

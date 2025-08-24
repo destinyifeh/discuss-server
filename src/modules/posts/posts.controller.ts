@@ -17,7 +17,9 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { POSTS_IMAGE_FOLDER } from 'src/common/utils/constants/config';
+import { Role } from 'src/common/utils/types/user.type';
 import { multerConfig } from 'src/config/multer.config';
+import { Roles } from '../admin/decorators/role.decorator';
 import { RolesGuard } from '../admin/guards/role.gurad';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 import {
@@ -27,7 +29,6 @@ import {
 } from './dto/create-post.dto';
 import { PostsService } from './posts.service';
 
-@UseGuards(JwtAuthGuard)
 @Controller('posts')
 export class PostsController {
   constructor(
@@ -36,6 +37,7 @@ export class PostsController {
   ) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('images', 4, multerConfig))
   async cratePost(
     @Body() data: CreatePostDto,
@@ -58,6 +60,7 @@ export class PostsController {
   }
 
   @Get('user-posts')
+  @UseGuards(JwtAuthGuard)
   getCurrentUserPosts(
     @CurrentUser() user: { userId: string },
     @Query('type') type: UserPostType,
@@ -76,6 +79,7 @@ export class PostsController {
   }
 
   @Get('posts-with-comment-count')
+  @UseGuards(JwtAuthGuard)
   async getPostsWithCommentCount(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -91,6 +95,7 @@ export class PostsController {
   }
 
   @Get('likes')
+  @UseGuards(JwtAuthGuard)
   getCurrentUserPostLikes(
     @CurrentUser() user: { userId: string },
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -107,6 +112,7 @@ export class PostsController {
   }
 
   @Get('replies')
+  @UseGuards(JwtAuthGuard)
   getCurrentUserPostReplies(
     @CurrentUser() user: { userId: string },
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -123,6 +129,7 @@ export class PostsController {
   }
 
   @Get('user-posts/:id')
+  @UseGuards(JwtAuthGuard)
   getUserPosts(
     @Param('id') userId: string,
     @Query('type') type: UserPostType,
@@ -140,6 +147,7 @@ export class PostsController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('images', 4, multerConfig))
   async updatePost(
     @Param('id') postId: string,
@@ -183,6 +191,7 @@ export class PostsController {
   }
 
   @Post(':id/view')
+  @UseGuards(JwtAuthGuard)
   viewPost(
     @Param('id') postId: string,
     @CurrentUser() user: { userId: string },
@@ -202,7 +211,22 @@ export class PostsController {
   }
 
   @Get('comment-count/:id')
+  @UseGuards(JwtAuthGuard)
   async countPostComments(@Param('id') id: string) {
     return this.postsService.countPostComments(id);
+  }
+
+  @Post(':id/promote')
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async promotePost(@Param('id') id: string) {
+    return this.postsService.promotePost(id);
+  }
+
+  @Post(':id/demote')
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async demotePost(@Param('id') id: string) {
+    return this.postsService.demotePost(id);
   }
 }

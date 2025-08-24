@@ -57,3 +57,8 @@ export enum UserPostType {
   LIKES = 'likes',
   MENTIONS = 'mentions',
 }
+
+export enum PostStatus {
+  PUBLISHED = 'published',
+  PROMOTED = 'promoted',
+}

@@ -27,7 +27,7 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 import { RedisService } from '../storage/redis.service';
 import { User } from '../users/schemas/user.schema';
-import { CreateAdDto } from './dto/create-ad.dto';
+import { AdPlacementProps, CreateAdDto } from './dto/create-ad.dto';
 import { Ad } from './schema/ad.schema';
 
 @Injectable()
@@ -50,7 +50,7 @@ export class AdsService {
   }
 
   private async setAdRotation(
-    section: string,
+    placement: string,
     rotation: { index: number; ads: any[] },
     ttlSeconds = 600, // default 10 minutes
   ) {
@@ -61,16 +61,16 @@ export class AdsService {
     }
 
     try {
-      await client.set(`ads:${section}`, JSON.stringify(rotation), {
+      await client.set(`ads:${placement}`, JSON.stringify(rotation), {
         EX: ttlSeconds, // correct format in node-redis v4
       });
     } catch (err) {
-      console.error(`❌ Failed to set cache for ads:${section}`, err);
+      console.error(`❌ Failed to set cache for ads:${placement}`, err);
     }
   }
 
   private async getAdRotation(
-    section: string,
+    placement: string,
   ): Promise<{ index: number; ads: any[] } | null> {
     const client = this.redisService.getClient();
     if (!client) {
@@ -79,15 +79,15 @@ export class AdsService {
     }
 
     try {
-      const data = await client.get(`ads:${section}`);
+      const data = await client.get(`ads:${placement}`);
       return data ? JSON.parse(data) : null;
     } catch (err) {
-      console.error(`❌ Failed to get cache for ads:${section}`, err);
+      console.error(`❌ Failed to get cache for ads:${placement}`, err);
       return null;
     }
   }
 
-  private async clearAdRotation(section: string) {
+  private async clearAdRotation(placement: string) {
     const client = this.redisService.getClient();
     if (!client) {
       // Redis unavailable → nothing to clear
@@ -95,9 +95,9 @@ export class AdsService {
     }
 
     try {
-      await client.del(`ads:${section}`);
+      await client.del(`ads:${placement}`);
     } catch (err) {
-      console.error(`❌ Failed to clear cache for ads:${section}`, err);
+      console.error(`❌ Failed to clear cache for ads:${placement}`, err);
     }
   }
 
@@ -116,6 +116,13 @@ export class AdsService {
     const savedAd = await ad.save();
 
     console.log('Saved ad:', savedAd);
+
+    await this.notificationsService.createNotification({
+      type: 'admin',
+      message: 'New advertisement submitted',
+      content: `A new ad  titled "${dto.title}" submitted`,
+      senderName: 'System',
+    });
 
     return {
       code: '200',
@@ -551,19 +558,24 @@ export class AdsService {
     return { code: '200', ads: [ad] }; // Return one ad at a time
   }
 
-  async getBannerAds(section: string) {
-    const sectionKey = section.toLowerCase();
-
+  async getBannerAds(placement: AdPlacementProps, section?: string) {
+    const placementKey = placement;
+    const filter: any = { status: AdStatus.ACTIVE, type: 'banner' };
     // Try to get rotation from Redis
-    let rotation = await this.getAdRotation(sectionKey);
+    let rotation = await this.getAdRotation(placementKey);
 
     // If not found, load fresh ads from DB and store in Redis
     if (!rotation || rotation.ads.length === 0) {
-      const ads = await this.adModel.find({
-        section: sectionKey,
-        status: AdStatus.ACTIVE,
-        type: 'banner',
-      });
+      if (placement === 'homepage_feed') {
+        filter.plan = 'enterprise';
+      }
+      if (placement === 'details_feed') {
+        filter.plan = { $in: ['enterprise', 'professional'] };
+      }
+      if (placement === 'section_feed') {
+        filter.section = section;
+      }
+      const ads = await this.adModel.find(filter);
 
       if (!ads || ads.length === 0) {
         throw new NotFoundException('No active ads found for this section');
@@ -573,7 +585,7 @@ export class AdsService {
       const shuffledAds = ads.sort(() => Math.random() - 0.5);
       rotation = { index: 0, ads: shuffledAds };
 
-      await this.setAdRotation(sectionKey, rotation);
+      await this.setAdRotation(placementKey, rotation);
     }
 
     // Get the next ad in sequence
@@ -581,7 +593,7 @@ export class AdsService {
     rotation.index = (rotation.index + 1) % rotation.ads.length;
 
     // Save updated rotation back to Redis
-    await this.setAdRotation(sectionKey, rotation);
+    await this.setAdRotation(placementKey, rotation);
 
     return { code: '200', ads: [ad] }; // one ad per call
   }

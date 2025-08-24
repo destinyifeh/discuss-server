@@ -1,3 +1,5 @@
+import { AdPlacementProps } from 'src/modules/ads/dto/create-ad.dto';
+
 export interface FeedQuery {
   section?: string;
   page: number;
@@ -6,6 +8,7 @@ export interface FeedQuery {
   postId?: string;
   onlyBookmarked?: boolean;
   theCurrentUserId: string;
+  placement?: AdPlacementProps;
 }
 
 export type AdPlan = 'basic' | 'professional' | 'enterprise';

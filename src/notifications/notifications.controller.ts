@@ -61,4 +61,9 @@ export class NotificationsController {
   async getUnreadCount(@CurrentUser() user: { userId: string }) {
     return this.notificationService.getUnreadCount(user.userId);
   }
+
+  @Get('system-notifications')
+  getSystemNotifications() {
+    return this.notificationService.getSystemNotifications();
+  }
 }

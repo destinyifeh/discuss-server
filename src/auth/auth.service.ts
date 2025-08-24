@@ -13,12 +13,13 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { Response } from 'express';
 import { Model } from 'mongoose';
+import { capitalizeName } from 'src/common/utils/formatter';
 import { AccountStatus } from 'src/common/utils/types/user.type';
 import { toSafeUser } from 'src/common/utils/user.mapper';
 import { MailService } from 'src/mail/mail.service';
-import { MailerService } from 'src/mailer/mailer.service';
 import { User } from 'src/modules/users/schemas/user.schema';
 import { UsersService } from 'src/modules/users/users.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 import {
   ACCESS_TOKEN,
   ACCESS_TOKEN_EXPIRATION_MS,
@@ -32,10 +33,9 @@ import { CreateUserDto } from './dto/create-user.dto';
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
-
     private readonly jwtService: JwtService,
-    private readonly mailerService: MailerService,
     private readonly mailService: MailService,
+    private readonly notificationsService: NotificationsService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
@@ -278,6 +278,13 @@ export class AuthService {
 
       console.log('Saved User:', savedUser);
 
+      await this.notificationsService.createNotification({
+        type: 'admin',
+        message: 'New user registration',
+        content: `${capitalizeName(data.username)} joined the platform`,
+        senderName: 'System',
+      });
+
       return {
         code: HttpStatus.OK,
         message: 'success',
@@ -309,6 +316,14 @@ export class AuthService {
       const savedUser = await createdUser.save();
 
       console.log('Saved User:', savedUser);
+
+      await this.notificationsService.createNotification({
+        type: 'admin',
+        message: 'New user registration',
+        content: `${capitalizeName(data.username)} joined the platform`,
+        senderName: 'System',
+      });
+
       return savedUser;
     } catch (err) {
       console.error('Error registering user:', err);
