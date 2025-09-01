@@ -357,7 +357,7 @@ export class AdminService {
       // Optional: Sort by number of posts or comments
       { $sort: { posts: -1 } },
     ]);
-
+    console.log(results, 'riri');
     return {
       code: '200',
       message: 'Section stats retrieved',
