@@ -581,6 +581,23 @@ export class PostsService {
       ...post,
     };
   }
+  async getPostBySlug(slug: string) {
+    // Increment the view count
+    await this.postModel.findOneAndUpdate({ slug }, { $inc: { viewCount: 1 } });
+
+    const post = await this.postModel
+      .findOne({ slug })
+      .populate('user', 'username avatar')
+      .lean();
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    return {
+      ...post,
+    };
+  }
 
   async countPostComments(postId: string) {
     const objectId = new Types.ObjectId(postId);
@@ -716,5 +733,11 @@ export class PostsService {
     }
 
     return { code: '200', message: 'Post demoted', post };
+  }
+
+  async getPostsForSitemap() {
+    return this.postModel
+      .find({}, { slug: 1, updatedAt: 1, section: 1 })
+      .lean();
   }
 }

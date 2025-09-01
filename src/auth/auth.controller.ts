@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { USERS_AVATAR_FOLDER } from 'src/common/utils/constants/config';
 import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
@@ -41,6 +42,7 @@ export class AuthController {
   ) {}
 
   @UseGuards(LocalAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(
     @Req() req: Request,
@@ -54,11 +56,13 @@ export class AuthController {
     return this.authService.logout(res);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('forgot-password')
   async forgotPass(@Body() data: ForgotPassDto) {
     return this.authService.forgotPassword(data.email);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('reset-password')
   async resetPassword(@Body() data: ResetPassDto) {
     return this.authService.resetPassword(data.token, data.password);
@@ -76,12 +80,13 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const token =
-      req.cookies?.refreshToken || // cookie path=/auth/refresh-token
-      req.body?.refreshToken || // fallback if body is sent.
+      req.cookies?.encrypted_refresh_token || // cookie path=/auth/refresh-token
+      req.body?.encrypted_refresh_token || // fallback if body is sent.
       null;
     return this.authService.refreshToken(token, res);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   @UseInterceptors(FileInterceptor('avatar', multerConfig))
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
@@ -98,6 +103,8 @@ export class AuthController {
     }
     return this.authService.registerUser(data, result);
   }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch('change-password')
   @UseGuards(JwtAuthGuard)
   async changePassword(
@@ -114,6 +121,7 @@ export class AuthController {
 
   //Google auth
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Get('google/login')
   @UseGuards(GoogleAuthGuard)
   async googleAuth() {}

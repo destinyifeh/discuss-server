@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -19,9 +21,12 @@ import { NotificationsModule } from './notifications/notifications.module';
 @Module({
   imports: [
     UsersModule,
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [`.env.${process.env.NODE_ENV}`],
+    }),
     ScheduleModule.forRoot(),
-    MongooseModule.forRoot(process.env.MONGO_DEV_URL as string),
+    MongooseModule.forRoot(process.env.MONGO_URL as string),
     AuthModule,
     ReportsModule,
     NotificationsModule,
@@ -32,18 +37,20 @@ import { NotificationsModule } from './notifications/notifications.module';
     MailModule,
     MediaUploadModule,
     RedisModule,
-    // MongooseModule.forRootAsync({
-    //   imports: [ConfigModule],
-    //   inject: [ConfigService],
-    //   useFactory: (configService: ConfigService) => ({
-    //     uri:
-    //       configService.get<string>('NODE_ENV') === 'production'
-    //         ? configService.get<string>('MONGO_PROD_URL')
-    //         : configService.get<string>('MONGO_DEV_URL'),
-    //   }),
-    // }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // time-to-live in seconds (1 minute)
+        limit: 100, // number of requests allowed per ttl
+      },
+    ]),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

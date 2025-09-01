@@ -7,6 +7,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
@@ -21,23 +22,37 @@ import { User } from 'src/modules/users/schemas/user.schema';
 import { UsersService } from 'src/modules/users/users.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import {
-  ACCESS_TOKEN,
   ACCESS_TOKEN_EXPIRATION_MS,
   generateUrlTokenLink,
-  jwtConstants,
-  REFRESH_TOKEN,
   REFRESH_TOKEN_EXPIRATION_MS,
 } from './constants';
 import { CreateUserDto } from './dto/create-user.dto';
 @Injectable()
 export class AuthService {
+  private readonly accessTokenKey: string;
+  private readonly refreshTokenKey: string;
+  private readonly jwtRefreshSecret: string;
+  private readonly jwtRefreshTokenExpirationPeriod: string;
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly notificationsService: NotificationsService,
+    private readonly configService: ConfigService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
-  ) {}
+  ) {
+    this.accessTokenKey =
+      this.configService.get<string>('ACCESS_TOKEN_KEY') ?? '';
+    this.refreshTokenKey =
+      this.configService.get<string>('REFRESH_TOKEN_KEY') ?? '';
+
+    this.jwtRefreshSecret =
+      this.configService.get<string>('JWT_REFRESH_SECRET') ?? '';
+    this.jwtRefreshTokenExpirationPeriod =
+      this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION_PERIOD') ??
+      '';
+  }
 
   generateJwt(user) {
     const payload = {
@@ -47,21 +62,6 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  async generateRefreshJwt(user) {
-    const payload = {
-      sub: user._id,
-      email: user.email,
-    };
-
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: jwtConstants.refreshSecret,
-      expiresIn: '7d',
-    });
-
-    await this.updateRefreshToken(user._id, refreshToken);
-
-    return refreshToken;
-  }
   async findByEmail(email: string): Promise<User | null> {
     return this.userModel.findOne({ email }).exec();
   }
@@ -87,14 +87,14 @@ export class AuthService {
     accessToken: string,
     refreshToken: string,
   ) {
-    res.cookie(ACCESS_TOKEN, accessToken, {
+    res.cookie(this.accessTokenKey, accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // true in production for HTTPS
       sameSite: 'lax', // Adjust as needed: 'Strict', 'None' (requires secure: true)
       maxAge: ACCESS_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
     });
-    res.cookie(REFRESH_TOKEN, refreshToken, {
+    res.cookie(this.refreshTokenKey, refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -104,8 +104,8 @@ export class AuthService {
   }
 
   private clearAuthCookies(res: Response) {
-    res.clearCookie(ACCESS_TOKEN, { path: '/' });
-    res.clearCookie(REFRESH_TOKEN, { path: '/' });
+    res.clearCookie(this.accessTokenKey, { path: '/' });
+    res.clearCookie(this.refreshTokenKey, { path: '/' });
   }
 
   async updateRefreshToken(userId: string, refreshToken: string) {
@@ -154,27 +154,26 @@ export class AuthService {
 
   async login(user: any, res: Response) {
     const payload = { username: user.username, sub: user._id };
-
+    console.log(payload, 'paymee');
     const accessToken = this.jwtService.sign(payload);
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret: jwtConstants.refreshSecret,
-      // expiresIn: '30d',
-      expiresIn: '50m',
+      secret: this.jwtRefreshSecret,
+      expiresIn: this.jwtRefreshTokenExpirationPeriod,
     });
     // Save hashed refresh token in DB
     await this.updateRefreshToken(user._id, refreshToken);
     this.setAuthCookies(res, accessToken, refreshToken);
 
     const safeUser = toSafeUser(user);
-
+    console.log(safeUser, 'destoo');
     return { user: safeUser };
   }
 
   async refreshToken(token: string, res: Response) {
     try {
       const payload = this.jwtService.verify(token, {
-        secret: jwtConstants.refreshSecret,
+        secret: this.jwtRefreshSecret,
       });
       console.log(payload, 'payloadbver');
       const user = await this.userModel.findById(payload.sub).exec();
@@ -189,9 +188,8 @@ export class AuthService {
       const newPayload = { username: user.username, sub: user._id };
       const accessToken = this.jwtService.sign(newPayload);
       const refreshToken = this.jwtService.sign(newPayload, {
-        secret: jwtConstants.refreshSecret,
-        //expiresIn: '30d',
-        expiresIn: '50m',
+        secret: this.jwtRefreshSecret,
+        expiresIn: this.jwtRefreshTokenExpirationPeriod,
       });
       this.setAuthCookies(res, accessToken, refreshToken);
       return {
@@ -342,9 +340,8 @@ export class AuthService {
     const newPayload = { username: user.username, sub: user._id };
     const accessToken = this.jwtService.sign(newPayload);
     const refreshToken = this.jwtService.sign(newPayload, {
-      secret: jwtConstants.refreshSecret,
-      //expiresIn: '30d',
-      expiresIn: '50m',
+      secret: this.jwtRefreshSecret,
+      expiresIn: this.jwtRefreshTokenExpirationPeriod,
     });
 
     // Save hashed refresh token in DB.

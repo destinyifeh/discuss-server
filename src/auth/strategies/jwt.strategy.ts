@@ -6,7 +6,6 @@ import { Model } from 'mongoose';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AccountStatus } from 'src/common/utils/types/user.type';
 import { User } from 'src/modules/users/schemas/user.schema';
-import { jwtConstants } from '../constants';
 
 interface JwtPayload {
   sub: string; // user ID
@@ -19,7 +18,7 @@ interface JwtPayload {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {
     const cookieExtractor = (req: Request): string | null => {
-      return req.cookies?.accessToken ?? null; // match cookie name
+      return req.cookies?.encrypted_access_token ?? null; // match cookie name
     };
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -27,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
-      secretOrKey: jwtConstants.secret,
+      secretOrKey: process.env.JWT_SECRET as string,
     });
   }
 

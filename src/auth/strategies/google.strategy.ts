@@ -49,7 +49,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       });
 
       const token = this.authService.generateJwt(user);
-
+      console.log(token, 'tokeeem');
       return token;
     } catch (error) {
       console.error('Google Auth / User Registration failed:', error);

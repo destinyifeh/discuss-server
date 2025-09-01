@@ -93,7 +93,9 @@ export class FeedsService {
       filter.plan = { $in: ['enterprise', 'professional'] };
     }
     if (arg?.placement === 'section_feed') {
-      filter.section = arg.section;
+      // filter.section = arg.section;
+      // filter.plan = 'enterprise';
+      filter.section = { $in: ['enterprise', arg.section] };
     }
     return this.adModel
       .find(filter)

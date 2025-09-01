@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Role } from 'src/common/utils/types/user.type';
@@ -61,6 +62,7 @@ export class AdminController {
     return this.adminService.getUserDistributionAndStats();
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch('users/:id/action')
   @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.USER)
   userAction(
@@ -72,6 +74,7 @@ export class AdminController {
     return this.adminService.accountRestrictionAction(id, dto, performedBy);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch('update-role/:userId')
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   async updateUserRole(

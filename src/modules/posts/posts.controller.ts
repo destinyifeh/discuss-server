@@ -14,6 +14,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { POSTS_IMAGE_FOLDER } from 'src/common/utils/constants/config';
@@ -36,6 +37,7 @@ export class PostsController {
     private readonly postsService: PostsService,
   ) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('images', 4, multerConfig))
@@ -76,6 +78,11 @@ export class PostsController {
       limit,
       search,
     });
+  }
+
+  @Get('sitemap-posts')
+  async getSitemapPost() {
+    return this.postsService.getPostsForSitemap();
   }
 
   @Get('posts-with-comment-count')
@@ -146,6 +153,7 @@ export class PostsController {
     });
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('images', 4, multerConfig))
@@ -165,6 +173,7 @@ export class PostsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Delete(':id')
   async deletePost(
     @Param('id') id: string,
@@ -173,6 +182,7 @@ export class PostsController {
     return this.postsService.deletePost(id, user.userId, user.role);
   }
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':id/like')
   likePost(
     @Param('id') postId: string,
@@ -182,6 +192,7 @@ export class PostsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':id/bookmark')
   bookmarkPost(
     @Param('id') postId: string,
@@ -210,12 +221,18 @@ export class PostsController {
     return this.postsService.getPostById(id);
   }
 
+  @Get('details/:slug')
+  async getPostBySlug(@Param('slug') slug: string) {
+    return this.postsService.getPostBySlug(slug);
+  }
+
   @Get('comment-count/:id')
   @UseGuards(JwtAuthGuard)
   async countPostComments(@Param('id') id: string) {
     return this.postsService.countPostComments(id);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post(':id/promote')
   @UseGuards(JwtAuthGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
@@ -223,6 +240,7 @@ export class PostsController {
     return this.postsService.promotePost(id);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post(':id/demote')
   @UseGuards(JwtAuthGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)

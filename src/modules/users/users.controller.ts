@@ -22,6 +22,7 @@ import {
   FileFieldsInterceptor,
   FileInterceptor,
 } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from 'src/auth/auth.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -62,6 +63,7 @@ export class UsersController {
     });
   }
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('mail')
   mailUser(@CurrentUser() user: { userId: string }, @Body() dto: MailUserDto) {
     return this.usersService.mailUser(dto);
@@ -72,6 +74,7 @@ export class UsersController {
     return this.usersService.getUsers();
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch('profile-update')
   @UseGuards(JwtAuthGuard)
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
@@ -135,6 +138,7 @@ export class UsersController {
     return this.usersService.getUserByUsername(username);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch('user/profile-upload/:id')
   @UseInterceptors(FileInterceptor('avatar', multerConfig))
   async updateUserPhoto(
@@ -150,6 +154,7 @@ export class UsersController {
     return this.usersService.updateUserPhoto(id, body.fileType, result);
   }
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':targetId/follow')
   async follow(
     @Param('targetId') targetId: string,
@@ -158,6 +163,7 @@ export class UsersController {
     return this.usersService.followUser(user.userId, targetId);
   }
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Put(':id/unfollow')
   async unfollow(
     @Param('id') targetUserId: string,

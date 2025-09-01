@@ -16,6 +16,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ADS_IMAGE_FOLDER } from 'src/common/utils/constants/config';
@@ -34,6 +35,7 @@ export class AdsController {
   ) {}
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post()
   @UseInterceptors(FileInterceptor('image', multerConfig))
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
@@ -86,6 +88,8 @@ export class AdsController {
     );
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UseGuards(JwtAuthGuard)
   @Post('initialize')
   async initialize(
     @Body() body: { email: string; amount: number; otherDetails: any },
@@ -116,6 +120,7 @@ export class AdsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/pause/:adOwnerId')
   pauseAd(
     @Param('adId') adId: string,
@@ -126,6 +131,7 @@ export class AdsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/approve/:adOwnerId')
   approveAd(
     @Param('adId') adId: string,
@@ -135,6 +141,7 @@ export class AdsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/activate/:adOwnerId')
   activateAd(
     @Param('adId') adId: string,
@@ -144,6 +151,7 @@ export class AdsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/reject/:adOwnerId')
   rejectAd(
     @Param('adId') adId: string,
@@ -154,6 +162,7 @@ export class AdsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/resume')
   reaumeAd(@Param('adId') adId: string) {
     return this.adsService.resumeAd(adId);

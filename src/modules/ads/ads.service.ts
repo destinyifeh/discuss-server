@@ -573,7 +573,8 @@ export class AdsService {
         filter.plan = { $in: ['enterprise', 'professional'] };
       }
       if (placement === 'section_feed') {
-        filter.section = section;
+        //filter.section = section;
+        filter.section = { $in: ['enterprise', section] };
       }
       const ads = await this.adModel.find(filter);
 

@@ -16,6 +16,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { multerConfig } from 'src/config/multer.config';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { COMMENTS_IMAGE_FOLDER } from 'src/common/utils/constants/config';
 import { CommentsService } from './comments.service';
@@ -28,6 +29,7 @@ export class CommentsController {
     private readonly mediaUploadService: MediaUploadService,
   ) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post()
   @UseInterceptors(FilesInterceptor('images', 2, multerConfig))
   async createComment(
@@ -61,6 +63,7 @@ export class CommentsController {
     return this.commentService.findByPost(postId);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @Patch(':id/like')
   async like(
@@ -71,6 +74,7 @@ export class CommentsController {
     return this.commentService.like(commentId, userId);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @Patch(':id/dislike')
   async dislike(
@@ -81,6 +85,7 @@ export class CommentsController {
     return this.commentService.dislike(commentId, userId);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @Delete(':id/:postId')
   async deleteComment(
@@ -92,6 +97,7 @@ export class CommentsController {
     return this.commentService.delete(commentId, postId, userId);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch('update/:id')
   @UseInterceptors(FilesInterceptor('images', 2, multerConfig))
   async updatePost(

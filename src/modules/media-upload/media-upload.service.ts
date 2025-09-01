@@ -25,10 +25,10 @@ export class MediaUploadService {
     @Inject('CLOUDINARY') private readonly cloudinary: typeof Cloudinary,
     private readonly configService: ConfigService,
   ) {
-    this.accessId = this.getRequiredConfig('AWS_ACCESS_KEY_ID');
-    this.region = this.getRequiredConfig('AWS_REGION');
-    this.secretAccessKey = this.getRequiredConfig('AWS_SECRET_ACCESS_KEY');
-    this.bucketName = this.getRequiredConfig('AWS_S3_BUCKET');
+    this.accessId = process.env.AWS_ACCESS_KEY_ID as string;
+    this.region = process.env.AWS_REGION as string;
+    this.secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY as string;
+    this.bucketName = process.env.AWS_S3_BUCKET as string;
 
     this.s3 = new S3Client({
       region: this.region,

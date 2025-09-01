@@ -1,7 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import slugify from 'slugify';
 import { PostImage, PostStatus } from '../dto/create-post.dto';
-
+const { nanoid } = require('nanoid');
 export type PostDocument = HydratedDocument<Post>;
 
 @Schema({ timestamps: true }) // adds createdAt, updatedAt
@@ -44,8 +45,24 @@ export class Post {
   })
   images: PostImage[];
 
+  @Prop({ unique: true, index: true })
+  slug: string; // SEO friendly slug
+
   @Prop({ default: false })
   commentsClosed: boolean;
 }
 
 export const PostSchema = SchemaFactory.createForClass(Post);
+
+// Generate slug before saving
+PostSchema.pre('save', async function (next) {
+  if (!this.isNew) return next(); // Only create slug on new documents
+
+  const baseSlug = slugify(this.content.slice(0, 50), {
+    lower: true,
+    strict: true,
+  });
+  const uniquePart = nanoid(6);
+  this.slug = `${baseSlug}-${uniquePart}`;
+  next();
+});

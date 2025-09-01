@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -29,6 +30,7 @@ export class ReportsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('post/:id')
   reportPost(
     @Param('id') postId: string,
@@ -45,6 +47,7 @@ export class ReportsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('comment/:id')
   reportComment(
     @Param('id') commentId: string,
@@ -61,6 +64,7 @@ export class ReportsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('ad/:id')
   reportAd(
     @Param('id') adId: string,
@@ -77,6 +81,7 @@ export class ReportsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('user/:id')
   reportUser(
     @Param('id') targetUserId: string,
@@ -93,6 +98,7 @@ export class ReportsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('abuse')
   reportAbuse(
     @CurrentUser() user: { userId: string },
