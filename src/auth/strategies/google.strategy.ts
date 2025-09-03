@@ -18,7 +18,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     super({
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: `${process.env.API_BASE_URL}/api/auth/callback/google`,
+      callbackURL: `${process.env.API_BASE_URL}/auth/google/callback`,
       scope: ['profile', 'email'],
     });
   }
@@ -49,7 +49,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       });
 
       const token = this.authService.generateJwt(user);
-      console.log(token, 'tokeeem');
       return token;
     } catch (error) {
       console.error('Google Auth / User Registration failed:', error);

@@ -25,10 +25,10 @@ export class MediaUploadService {
     @Inject('CLOUDINARY') private readonly cloudinary: typeof Cloudinary,
     private readonly configService: ConfigService,
   ) {
-    this.accessId = process.env.AWS_ACCESS_KEY_ID as string;
-    this.region = process.env.AWS_REGION as string;
-    this.secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY as string;
-    this.bucketName = process.env.AWS_S3_BUCKET as string;
+    this.accessId = process.env.AWS_S3_ACCESS_KEY_ID as string;
+    this.region = process.env.AWS_S3_REGION as string;
+    this.secretAccessKey = process.env.AWS_S3_SECRET_ACCESS_KEY as string;
+    this.bucketName = process.env.AWS_S3_BUCKET_NAME as string;
 
     this.s3 = new S3Client({
       region: this.region,
@@ -44,10 +44,12 @@ export class MediaUploadService {
     if (!value) throw new Error(`${key} is missing`);
     return value;
   }
-
+  //https://media.discussday.com/myfile.png),
   // Generate S3 URL
   private getFileUrl(key: string) {
-    return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+    // return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+
+    return `https://d2t1q0632pwd6c.cloudfront.net/${key}`;
   }
 
   // ✅ Upload single file

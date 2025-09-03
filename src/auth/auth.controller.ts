@@ -126,14 +126,13 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleAuth() {}
 
-  @Get('callback/google')
+  @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
     // handle the successful Google login here
     const token = req.user as string;
-
     return res.redirect(
-      `${process.env.CLIENT_URL}/callback/google?token=${token}`,
+      `${process.env.CLIENT_URL}/google/callback?token=${token}`,
     );
   }
   @Get('google/user/:token')

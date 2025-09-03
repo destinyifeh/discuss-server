@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -7,7 +7,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
   app.useGlobalPipes(new ValidationPipe());
-  app.setGlobalPrefix('api');
+  //app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: 'auth/google/callback', method: RequestMethod.GET }],
+  });
   app.enableCors({
     origin: [process.env.APP_URL],
     credentials: true,

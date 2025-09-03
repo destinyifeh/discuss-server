@@ -11,8 +11,6 @@ import { Model, Types } from 'mongoose';
 import {
   AD_PAYMENT_URL,
   DASHBOARD_URL,
-  PAYSTACK_BASE_URL,
-  PAYSTACK_CALLBACK_URL,
   VIEW_AD_URL,
 } from 'src/common/utils/constants/api-resources';
 import {
@@ -610,11 +608,11 @@ export class AdsService {
       const rawAmount = Number(amount.toString().replace(/₦|,/g, ''));
       const amountInKobo = rawAmount * 100;
       const response = await axios.post(
-        `${PAYSTACK_BASE_URL}/initialize`,
+        `${process.env.PAYSTACK_BASE_URL}/transaction/initialize`,
         {
           email,
           amount: amountInKobo, // kobo
-          callback_url: PAYSTACK_CALLBACK_URL,
+          callback_url: process.env.PAYSTACK_CALLBACK_URL,
           metadata: { ...otherDetails },
         },
         {
@@ -638,7 +636,7 @@ export class AdsService {
   async verifyTransaction(reference: string) {
     try {
       const response = await axios.get(
-        `${PAYSTACK_BASE_URL}/verify/${reference}`,
+        `${process.env.PAYSTACK_BASE_URL}/transaction/verify/${reference}`,
         {
           headers: {
             Authorization: `Bearer ${this.paystackSecretKey}`,
