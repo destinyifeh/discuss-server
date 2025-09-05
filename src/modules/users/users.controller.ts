@@ -123,9 +123,10 @@ export class UsersController {
     return this.usersService.getUser(id);
   }
 
-  @Delete('user/:id')
-  deleteUser(@Param('id') id: string) {
-    return this.usersService.deleteUser(id);
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  deleteUser(@CurrentUser() user: { userId: string }, @Param('id') id: string) {
+    return this.usersService.deleteUser(id, user.userId);
   }
 
   //protected route

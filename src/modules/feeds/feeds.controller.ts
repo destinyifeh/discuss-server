@@ -40,6 +40,7 @@ export class FeedsController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
     @Query('onlyBookmarked') onlyBookmarked = false,
+    @Query('activeTab') activeTab?: string,
   ) {
     // return this.feedService.buildFeed({
     //   mode,
@@ -61,6 +62,7 @@ export class FeedsController {
       adPlan,
       onlyBookmarked,
       theCurrentUserId,
+      activeTab,
     });
     const total = await this.feedService.countTotalPosts(search, section); // You need to implement this logic
     //console.log(posts, 'my postss');

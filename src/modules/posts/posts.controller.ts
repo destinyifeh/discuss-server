@@ -226,6 +226,16 @@ export class PostsController {
     return this.postsService.getPostBySlug(slug);
   }
 
+  @Get('view-post-details/:slugId')
+  async getViewPostBySlugId(@Param('slugId') slugId: string) {
+    return this.postsService.getViewPostBySlugId(slugId);
+  }
+
+  @Get('post-details/:slugId')
+  async getPostBySlugId(@Param('slugId') slugId: string) {
+    return this.postsService.getPostBySlugId(slugId);
+  }
+
   @Get('comment-count/:id')
   @UseGuards(JwtAuthGuard)
   async countPostComments(@Param('id') id: string) {

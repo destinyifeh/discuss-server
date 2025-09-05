@@ -13,5 +13,6 @@ export const ADS_IMAGE_FOLDER = 'ads';
 export const POSTS_IMAGE_FOLDER = 'posts/images';
 
 export const USERS_AVATAR_FOLDER = 'users/avatar';
+export const USERS_AVATAR_COVER_FOLDER = 'users/avatar_cover';
 
 export const COMMENTS_IMAGE_FOLDER = 'comments/images';

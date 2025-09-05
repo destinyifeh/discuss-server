@@ -5,6 +5,7 @@ import { Ad } from '../ads/schema/ad.schema';
 import { Comment } from '../comments/schema/comment.schema';
 import { PostStatus } from '../posts/dto/create-post.dto';
 import { Post } from '../posts/schema/post.schema';
+import { User } from '../users/schemas/user.schema';
 import { FeedQuery } from './dto/feeds.dto';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class FeedsService {
     @InjectModel(Post.name) private readonly postModel: Model<Post>,
     @InjectModel(Ad.name) private readonly adModel: Model<Ad>,
     @InjectModel(Comment.name) private readonly commentModel: Model<Comment>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
   async countTotalPosts(search?: string, section?: string): Promise<number> {
@@ -46,6 +48,7 @@ export class FeedsService {
     onlyBookmarked,
     theCurrentUserId,
     placement,
+    activeTab,
   }: {
     section?: string;
     page: number;
@@ -54,6 +57,7 @@ export class FeedsService {
     onlyBookmarked?: boolean;
     theCurrentUserId: string;
     placement?: string;
+    activeTab?: string;
   }) {
     const skip = (page - 1) * limit;
     const query: any = {};
@@ -66,6 +70,20 @@ export class FeedsService {
     }
     if (placement === 'homepage_feed') {
       query.status = PostStatus.PROMOTED;
+    }
+    if (activeTab === 'following' && theCurrentUserId) {
+      // 1️⃣ fetch the current user’s following list
+      const currentUser = await this.userModel
+        .findById(theCurrentUserId)
+        .lean();
+
+      if (currentUser?.following?.length) {
+        // 2️⃣ filter posts by those user IDs
+        query.user = { $in: currentUser.following };
+      } else {
+        // user isn’t following anyone → no posts
+        query.user = { $in: [] };
+      }
     }
 
     if (search) {

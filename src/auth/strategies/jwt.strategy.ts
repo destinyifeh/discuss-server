@@ -17,9 +17,25 @@ interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {
+    // const cookieExtractor = (req: Request): string | null => {
+    //   return req.cookies?.encrypted_access_token ?? null; // match cookie name
+    // };
     const cookieExtractor = (req: Request): string | null => {
-      return req.cookies?.encrypted_access_token ?? null; // match cookie name
+      if (!req || !req.cookies) return null;
+
+      // Prefer the permanent session token
+      if (req.cookies.encrypted_access_token) {
+        return req.cookies.encrypted_access_token;
+      }
+
+      // Fallback: temporary Google token
+      if (req.cookies.google_temp_token) {
+        return req.cookies.google_temp_token;
+      }
+
+      return null;
     };
+
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         cookieExtractor,
@@ -64,6 +80,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: user._id.toString(),
       username: user.username,
       role: user.role,
+      // ...user,
     };
   }
 }

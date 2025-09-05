@@ -9,6 +9,7 @@ export interface FeedQuery {
   onlyBookmarked?: boolean;
   theCurrentUserId: string;
   placement?: AdPlacementProps;
+  activeTab?: string;
 }
 
 export type AdPlan = 'basic' | 'professional' | 'enterprise';

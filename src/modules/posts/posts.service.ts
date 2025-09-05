@@ -599,6 +599,42 @@ export class PostsService {
     };
   }
 
+  async getViewPostBySlugId(slugId: string) {
+    // Increment the view count
+    await this.postModel.findOneAndUpdate(
+      { slugId },
+      { $inc: { viewCount: 1 } },
+    );
+
+    const post = await this.postModel
+      .findOne({ slugId })
+      .populate('user', 'username avatar')
+      .lean();
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    return {
+      ...post,
+    };
+  }
+
+  async getPostBySlugId(slugId: string) {
+    const post = await this.postModel
+      .findOne({ slugId })
+      .populate('user', 'username avatar')
+      .lean();
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    return {
+      ...post,
+    };
+  }
+
   async countPostComments(postId: string) {
     const objectId = new Types.ObjectId(postId);
     const commentCount = await this.commentModel
@@ -737,7 +773,7 @@ export class PostsService {
 
   async getPostsForSitemap() {
     return this.postModel
-      .find({}, { slug: 1, updatedAt: 1, section: 1 })
+      .find({}, { slug: 1, updatedAt: 1, section: 1, slugId: 1 })
       .lean();
   }
 }

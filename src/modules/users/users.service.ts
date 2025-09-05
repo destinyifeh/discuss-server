@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpStatus,
   Injectable,
   InternalServerErrorException,
@@ -10,12 +11,16 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model, Types } from 'mongoose';
 import { NotificationsService } from 'src/notifications/notifications.service';
 
-import { USERS_AVATAR_FOLDER } from 'src/common/utils/constants/config';
+import {
+  USERS_AVATAR_COVER_FOLDER,
+  USERS_AVATAR_FOLDER,
+} from 'src/common/utils/constants/config';
 import { capitalizeName } from 'src/common/utils/formatter';
 import { selectedFields } from 'src/common/utils/user.mapper';
 import { MailService } from 'src/mail/mail.service';
 import { UserResponseDto } from '../../auth/dto/user-response.dto';
 import { GetUsersParams } from '../../auth/dto/user-types.dto';
+import { Ad } from '../ads/schema/ad.schema';
 import { Comment } from '../comments/schema/comment.schema';
 import { MediaUploadService } from '../media-upload/media-upload.service';
 import { Post } from '../posts/schema/post.schema';
@@ -31,6 +36,7 @@ export class UsersService {
     private readonly notificationService: NotificationsService,
     @InjectModel(Post.name) private readonly postModel: Model<Post>,
     @InjectModel(Comment.name) private readonly commentModel: Model<Comment>,
+    @InjectModel(Ad.name) private readonly adModel: Model<Ad>,
     @InjectConnection() private readonly connection: Connection,
   ) {}
 
@@ -194,7 +200,7 @@ export class UsersService {
     if (coverFile) {
       const { url, key } = await this.mediaUploadService.uploadFile(
         coverFile,
-        USERS_AVATAR_FOLDER,
+        USERS_AVATAR_COVER_FOLDER,
       );
 
       updates.cover_avatar = url;
@@ -246,80 +252,92 @@ export class UsersService {
     };
   }
 
-  async deleteUser(userId: string) {
+  async deleteUser(userId: string, currentUserId: string) {
+    const userObjectId = new Types.ObjectId(userId);
     const session = await this.connection.startSession();
     session.startTransaction();
 
     try {
-      const user = await this.userModel.findById(userId).session(session);
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
+      const user = await this.userModel.findById(userObjectId).session(session);
+      if (!user) throw new NotFoundException('User not found');
+      if (user._id.toString() !== currentUserId)
+        throw new ForbiddenException('Unauthorized');
 
-      // 1️⃣ Delete user's avatar
-      if (user.avatar_public_id) {
-        await this.mediaUploadService.deleteFile(user.avatar_public_id);
-      }
+      // Collect media IDs
+      const posts = await this.postModel.find({ user: userObjectId }).lean();
+      const postImageIds = posts.flatMap(
+        (p) => p.images?.map((img) => img.public_id) ?? [],
+      );
 
-      // 2️⃣ Get all posts by user
-      const posts = await this.postModel.find({ user: userId }).lean();
-      const postImagePublicIds = posts
-        .flatMap((post) => post.images ?? [])
-        .filter((img) => img?.public_id)
-        .map((img) => img.public_id);
-
-      // 3️⃣ Get all comments by user
       const comments = await this.commentModel
-        .find({ commentBy: userId })
+        .find({ commentBy: userObjectId })
         .lean();
-      const commentImagePublicIds = comments
-        .flatMap((comment) => comment.images ?? [])
-        .filter((img) => img?.public_id)
-        .map((img) => img.public_id);
+      const commentImageIds = comments.flatMap(
+        (c) => c.images?.map((img) => img.public_id) ?? [],
+      );
 
-      // 4️⃣ Delete all post images and comment images
-      const allImagePublicIds = [
-        ...postImagePublicIds,
-        ...commentImagePublicIds,
+      const ads = await this.adModel.find({ owner: userObjectId }).lean();
+
+      const adImageIds = ads
+        .map((ad) => ad.image_public_id) // extract each public_id
+        .filter((id) => id);
+
+      const avatarId = user.avatar_public_id ? [user.avatar_public_id] : [];
+      const cover_avatarId = user.cover_avatar_public_id
+        ? [user.cover_avatar_public_id]
+        : [];
+      const allMediaIds = [
+        ...avatarId,
+        ...cover_avatarId,
+        ...postImageIds,
+        ...commentImageIds,
+        ...adImageIds,
       ];
-      if (allImagePublicIds.length > 0) {
-        await this.mediaUploadService.deleteFiles(allImagePublicIds); // not in session
-      }
 
-      // 5️⃣ Delete posts
-      await this.postModel.deleteMany({ user: userId }, { session });
-
-      // 6️⃣ Remove likes/bookmarks/views/comments from other posts
+      // DB operations
+      await this.postModel.deleteMany({ user: userObjectId }).session(session);
+      await this.commentModel
+        .deleteMany({ commentBy: userObjectId })
+        .session(session);
       await this.postModel.updateMany(
         {},
         {
           $pull: {
-            likedBy: userId,
-            bookmarkedBy: userId,
-            viewedBy: userId,
+            likedBy: userObjectId,
+            bookmarkedBy: userObjectId,
+            viewedBy: userObjectId,
           },
         },
         { session },
       );
-
-      // 7️⃣ Delete comments by user
-      await this.commentModel.deleteMany({ commentBy: userId }, { session });
-
-      // 8️⃣ Delete the user
-      await this.userModel.deleteOne({ _id: userId }, { session });
+      await this.commentModel.updateMany(
+        {},
+        {
+          $pull: { likedBy: userObjectId, dislikedBy: userObjectId },
+        },
+        { session },
+      );
+      await this.adModel.deleteMany({ owner: userObjectId }).session(session);
+      await this.userModel.deleteOne({ _id: userObjectId }).session(session);
+      await this.userModel.updateMany(
+        {},
+        {
+          $pull: { following: userObjectId, followers: userObjectId },
+        },
+        { session },
+      );
 
       await session.commitTransaction();
 
-      return {
-        code: HttpStatus.OK,
-        message: 'User and all associated data successfully deleted',
-      };
-    } catch (error) {
+      // External cleanup (after commit)
+      if (allMediaIds.length > 0) {
+        await this.mediaUploadService.deleteFiles(allMediaIds);
+      }
+
+      return { message: 'User and all related data deleted successfully' };
+    } catch (err) {
       await session.abortTransaction();
-      console.error('Error deleting user and related data:', error);
-      throw new InternalServerErrorException(
-        'Failed to delete user and related data',
-      );
+      throw err;
     } finally {
       session.endSession();
     }

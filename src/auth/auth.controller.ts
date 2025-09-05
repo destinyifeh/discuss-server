@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Param,
   Patch,
   Post,
   Req,
@@ -131,15 +130,16 @@ export class AuthController {
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
     // handle the successful Google login here
     const token = req.user as string;
-    return res.redirect(
-      `${process.env.CLIENT_URL}/google/callback?token=${token}`,
-    );
+    return this.authService.handleGoogleLogin(token, res);
   }
-  @Get('google/user/:token')
+
+  @Get('google-user')
+  @UseGuards(JwtAuthGuard)
   async getGoogleUser(
-    @Param('token') token: string,
+    @CurrentUser() user: { userId: string },
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ) {
-    return this.authService.getGoogleLoginUser(token, res);
+    return this.authService.getGoogleLoginUser(user.userId, res);
   }
 }

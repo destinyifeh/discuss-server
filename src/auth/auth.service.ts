@@ -82,6 +82,15 @@ export class AuthService {
     return null;
   }
 
+  private setGoogleAuthTempCookie(res: Response, googleToken: string) {
+    res.cookie('google_temp_token', googleToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000, // expire in 5 mins
+    });
+  }
+
   private setAuthCookies(
     res: Response,
     accessToken: string,
@@ -106,6 +115,10 @@ export class AuthService {
   private clearAuthCookies(res: Response) {
     res.clearCookie(this.accessTokenKey, { path: '/' });
     res.clearCookie(this.refreshTokenKey, { path: '/' });
+  }
+
+  private clearGoogleAuthTempCookie(res: Response) {
+    res.clearCookie('google_temp_token', { path: '/' });
   }
 
   async updateRefreshToken(userId: string, refreshToken: string) {
@@ -329,13 +342,14 @@ export class AuthService {
     }
   }
 
-  async getGoogleLoginUser(token: string, res: Response) {
-    const payload = this.jwtService.verify(token);
-    const user = await this.userModel.findById(payload.sub).exec();
+  async getGoogleLoginUser(userId: string, res: Response) {
+    const user = await this.userModel.findById(userId).exec();
 
     if (!user) {
       throw new ForbiddenException('User not found');
     }
+
+    console.log(user, 'userMeett');
 
     const newPayload = { username: user.username, sub: user._id };
     const accessToken = this.jwtService.sign(newPayload);
@@ -350,9 +364,20 @@ export class AuthService {
     //set cookies
     this.setAuthCookies(res, accessToken, refreshToken);
 
+    //clear temp cookie
+    this.clearGoogleAuthTempCookie(res);
+
     const safeUser = toSafeUser(user);
 
-    res.json({ user: safeUser });
+    return { user: safeUser };
+  }
+
+  async handleGoogleLogin(token: string, res: Response) {
+    // 2. Set cookies (your helper method)
+    this.setGoogleAuthTempCookie(res, token);
+
+    // 3. Redirect to frontend
+    return res.redirect(`${process.env.CLIENT_URL}/login/google/callback`);
   }
 
   async changePassword(id: string, oldPassword: string, newPassword: string) {

@@ -45,8 +45,11 @@ export class Post {
   })
   images: PostImage[];
 
+  @Prop({ unique: true })
+  slug: string;
+
   @Prop({ unique: true, index: true })
-  slug: string; // SEO friendly slug
+  slugId: string;
 
   @Prop({ default: false })
   commentsClosed: boolean;
@@ -62,7 +65,8 @@ PostSchema.pre('save', async function (next) {
     lower: true,
     strict: true,
   });
-  const uniquePart = nanoid(6);
-  this.slug = `${baseSlug}-${uniquePart}`;
+  const shortId = nanoid(6);
+  this.slug = baseSlug;
+  this.slugId = shortId;
   next();
 });
