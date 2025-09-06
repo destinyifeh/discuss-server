@@ -12,9 +12,8 @@ async function bootstrap() {
     exclude: [{ path: 'auth/google/callback', method: RequestMethod.GET }],
   });
   app.enableCors({
-    origin: 'https://discuss-mu-three.vercel.app',
+    origin: [process.env.APP_URL],
     credentials: true,
-    exposedHeaders: ['Set-Cookie'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   });
   app.use(cookieParser());
