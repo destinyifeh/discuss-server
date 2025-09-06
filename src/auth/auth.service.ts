@@ -102,6 +102,7 @@ export class AuthService {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Adjust as needed: 'Strict', 'None' (requires secure: true)
       maxAge: ACCESS_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
+      domain: '.discuss-mu-three.vercel.app',
     });
     res.cookie(this.refreshTokenKey, refreshToken, {
       httpOnly: true,
@@ -109,6 +110,7 @@ export class AuthService {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: REFRESH_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
+      domain: '.discuss-mu-three.vercel.app',
     });
   }
 
