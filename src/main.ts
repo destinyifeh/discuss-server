@@ -1,20 +1,16 @@
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 async function bootstrap() {
-  //  const app = await NestFactory.create(AppModule);
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
-
+  const app = await NestFactory.create(AppModule);
   app.use(helmet());
   app.useGlobalPipes(new ValidationPipe());
   //app.setGlobalPrefix('api');
   app.setGlobalPrefix('api', {
     exclude: [{ path: 'auth/google/callback', method: RequestMethod.GET }],
   });
-  app.set('trust proxy', 1);
   app.enableCors({
     origin: [process.env.APP_URL as string],
     credentials: true,
