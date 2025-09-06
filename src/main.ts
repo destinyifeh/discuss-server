@@ -1,6 +1,6 @@
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import cookieParser from 'cookie-parser';
+import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 async function bootstrap() {
@@ -12,11 +12,10 @@ async function bootstrap() {
     exclude: [{ path: 'auth/google/callback', method: RequestMethod.GET }],
   });
   app.enableCors({
-    origin: [process.env.APP_URL as string],
+    origin: [process.env.APP_URL, 'https://discuss-mu-three.vercel.app'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   });
-
   app.use(cookieParser());
 
   await app.listen(process.env.PORT ?? 3000);
