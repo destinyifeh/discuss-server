@@ -182,7 +182,11 @@ export class AuthService {
 
     const safeUser = toSafeUser(user);
     console.log(safeUser, 'destoo');
-    return { user: safeUser, accessToken: accessToken };
+    return {
+      user: safeUser,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    };
   }
 
   async refreshToken(token: string, res: Response) {
