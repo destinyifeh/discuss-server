@@ -85,10 +85,9 @@ export class AuthService {
   private setGoogleAuthTempCookie(res: Response, googleToken: string) {
     res.cookie('google_temp_token', googleToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 5 * 60 * 1000, // expire in 5 mins
-      domain: '.onrender.com',
     });
   }
 
@@ -99,19 +98,17 @@ export class AuthService {
   ) {
     res.cookie(this.accessTokenKey, accessToken, {
       httpOnly: true,
-      secure: true, // true in production for HTTPS
-      sameSite: 'none', // Adjust as needed: 'Strict', 'None' (requires secure: true)
+      secure: process.env.NODE_ENV === 'production', // true in production for HTTPS
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Adjust as needed: 'Strict', 'None' (requires secure: true)
       maxAge: ACCESS_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
-      domain: '.onrender.com',
     });
     res.cookie(this.refreshTokenKey, refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: REFRESH_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
-      domain: '.onrender.com',
     });
   }
 
