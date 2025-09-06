@@ -88,6 +88,7 @@ export class AuthService {
       secure: true,
       sameSite: 'none',
       maxAge: 5 * 60 * 1000, // expire in 5 mins
+      domain: '.onrender.com',
     });
   }
 
@@ -102,6 +103,7 @@ export class AuthService {
       sameSite: 'none', // Adjust as needed: 'Strict', 'None' (requires secure: true)
       maxAge: ACCESS_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
+      domain: '.onrender.com',
     });
     res.cookie(this.refreshTokenKey, refreshToken, {
       httpOnly: true,
@@ -109,6 +111,7 @@ export class AuthService {
       sameSite: 'none',
       maxAge: REFRESH_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
+      domain: '.onrender.com',
     });
   }
 
