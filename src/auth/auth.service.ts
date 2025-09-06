@@ -88,6 +88,7 @@ export class AuthService {
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 5 * 60 * 1000, // expire in 5 mins
+      domain: '.vercel.app',
     });
   }
 
@@ -102,6 +103,7 @@ export class AuthService {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Adjust as needed: 'Strict', 'None' (requires secure: true)
       maxAge: ACCESS_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
+      domain: '.vercel.app',
     });
     res.cookie(this.refreshTokenKey, refreshToken, {
       httpOnly: true,
@@ -109,6 +111,7 @@ export class AuthService {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: REFRESH_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
+      domain: '.vercel.app',
     });
   }
 
