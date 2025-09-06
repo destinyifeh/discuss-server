@@ -83,10 +83,11 @@ export class AuthService {
   }
 
   private setGoogleAuthTempCookie(res: Response, googleToken: string) {
+    const isProd = process.env.NODE_ENV === 'production';
     res.cookie('google_temp_token', googleToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 5 * 60 * 1000, // expire in 5 mins
     });
   }
@@ -96,17 +97,18 @@ export class AuthService {
     accessToken: string,
     refreshToken: string,
   ) {
+    const isProd = process.env.NODE_ENV === 'production';
     res.cookie(this.accessTokenKey, accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // true in production for HTTPS
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Adjust as needed: 'Strict', 'None' (requires secure: true)
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax', // Adjust as needed: 'Strict', 'None' (requires secure: true)
       maxAge: ACCESS_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
     });
     res.cookie(this.refreshTokenKey, refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: REFRESH_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
     });
