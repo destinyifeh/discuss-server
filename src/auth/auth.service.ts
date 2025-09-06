@@ -84,7 +84,7 @@ export class AuthService {
 
   private setGoogleAuthTempCookie(res: Response, googleToken: string) {
     res.cookie('google_temp_token', googleToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 5 * 60 * 1000, // expire in 5 mins
@@ -97,14 +97,14 @@ export class AuthService {
     refreshToken: string,
   ) {
     res.cookie(this.accessTokenKey, accessToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production', // true in production for HTTPS
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Adjust as needed: 'Strict', 'None' (requires secure: true)
       maxAge: ACCESS_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
     });
     res.cookie(this.refreshTokenKey, refreshToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: REFRESH_TOKEN_EXPIRATION_MS, // in milliseconds
