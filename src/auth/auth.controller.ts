@@ -44,10 +44,10 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(
-    @Req() req: Request,
+    @CurrentUser() user: any,
     @Res({ passthrough: true }) res: Response, // <-- Inject Response object
   ) {
-    return this.authService.login(req.user, res);
+    return this.authService.login(user, res);
   }
 
   @Post('logout')
@@ -70,8 +70,8 @@ export class AuthController {
   //protected route
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Req() req: Request) {
-    return req.user;
+  getProfile(@CurrentUser() user: any) {
+    return user;
   }
   @Post('refresh-token')
   async refresh(
@@ -127,9 +127,9 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
-  async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
+  async googleAuthRedirect(@Res() res: Response, @CurrentUser() user: any) {
     // handle the successful Google login here
-    const token = req.user as string;
+    const token = user;
     return this.authService.handleGoogleLogin(token, res);
   }
 
@@ -138,7 +138,6 @@ export class AuthController {
   async getGoogleUser(
     @CurrentUser() user: { userId: string },
     @Res({ passthrough: true }) res: Response,
-    @Req() req: Request,
   ) {
     return this.authService.getGoogleLoginUser(user.userId, res);
   }

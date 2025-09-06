@@ -167,7 +167,7 @@ export class AuthService {
 
   async login(user: any, res: Response) {
     const payload = { username: user.username, sub: user._id };
-    console.log(payload, 'paymee');
+
     const accessToken = this.jwtService.sign(payload);
 
     const refreshToken = this.jwtService.sign(payload, {
