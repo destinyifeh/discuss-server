@@ -180,7 +180,8 @@ export class AuthService {
 
     const safeUser = toSafeUser(user);
     console.log(safeUser, 'destoo');
-    return { user: safeUser };
+    //return { user: safeUser };
+    res.json({ user: safeUser });
   }
 
   async refreshToken(token: string, res: Response) {
