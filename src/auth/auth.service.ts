@@ -100,15 +100,15 @@ export class AuthService {
     const isProd = process.env.NODE_ENV === 'production';
     res.cookie(this.accessTokenKey, accessToken, {
       httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax', // Adjust as needed: 'Strict', 'None' (requires secure: true)
+      secure: true,
+      sameSite: 'none', // Adjust as needed: 'Strict', 'None' (requires secure: true)
       maxAge: ACCESS_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
     });
     res.cookie(this.refreshTokenKey, refreshToken, {
       httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
+      secure: true,
+      sameSite: 'none',
       maxAge: REFRESH_TOKEN_EXPIRATION_MS, // in milliseconds
       path: '/',
     });
