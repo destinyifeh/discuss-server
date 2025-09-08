@@ -13,7 +13,7 @@ async function bootstrap() {
   });
   app.enableCors({
     //origin: [process.env.APP_URL],
-    origin: 'https://discuss-mu-three.vercel.app',
+    origin: ['https://discuss-mu-three.vercel.app', 'http://localhost:3001'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   });
