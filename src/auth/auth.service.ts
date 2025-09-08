@@ -178,7 +178,7 @@ export class AuthService {
     });
     // Save hashed refresh token in DB
     await this.updateRefreshToken(user._id, refreshToken);
-    // this.setAuthCookies(res, accessToken, refreshToken);
+    this.setAuthCookies(res, accessToken, refreshToken);
 
     const safeUser = toSafeUser(user);
     console.log(safeUser, 'destoo');
