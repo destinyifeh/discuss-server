@@ -375,7 +375,11 @@ export class AuthService {
 
     const safeUser = toSafeUser(user);
 
-    return { user: safeUser };
+    return {
+      user: safeUser,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    };
   }
 
   async handleGoogleLogin(token: string, res: Response) {
