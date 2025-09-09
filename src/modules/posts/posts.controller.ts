@@ -202,7 +202,7 @@ export class PostsController {
   }
 
   @Post(':id/view')
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
   viewPost(
     @Param('id') postId: string,
     @CurrentUser() user: { userId: string },
@@ -237,7 +237,7 @@ export class PostsController {
   }
 
   @Get('comment-count/:id')
-  @UseGuards(JwtAuthGuard)
+  //@UseGuards(JwtAuthGuard)
   async countPostComments(@Param('id') id: string) {
     return this.postsService.countPostComments(id);
   }
