@@ -217,12 +217,15 @@ export class AuthService {
       };
     } catch (err) {
       console.log(err);
+      this.clearAuthCookies(res);
       throw new ForbiddenException('Refresh token expired or invalid');
     }
   }
 
-  logout(res: Response) {
+  async logout(res: Response, userId: string) {
+    await this.updateRefreshToken(userId, '');
     this.clearAuthCookies(res);
+
     return { message: 'Logged out successfully', code: '200' };
   }
 

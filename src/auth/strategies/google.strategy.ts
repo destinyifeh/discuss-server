@@ -47,7 +47,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         avatar,
         password: googleId,
       });
-
       const token = this.authService.generateJwt(user);
       return token;
     } catch (error) {

@@ -50,9 +50,13 @@ export class AuthController {
     return this.authService.login(user, res);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('logout')
-  async logout(@Res({ passthrough: true }) res: Response) {
-    return this.authService.logout(res);
+  async logout(
+    @CurrentUser() user: { userId: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.logout(res, user.userId);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
