@@ -63,7 +63,7 @@ export class CommentsController {
     return this.commentService.findByPost(postId);
   }
 
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  //@Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @Patch(':id/like')
   async like(
@@ -74,7 +74,7 @@ export class CommentsController {
     return this.commentService.like(commentId, userId);
   }
 
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  // @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @Patch(':id/dislike')
   async dislike(
