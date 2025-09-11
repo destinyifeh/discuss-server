@@ -18,7 +18,7 @@ import { capitalizeName } from 'src/common/utils/formatter';
 import { AccountStatus } from 'src/common/utils/types/user.type';
 import { toSafeUser } from 'src/common/utils/user.mapper';
 import { MailService } from 'src/mail/mail.service';
-import { User } from 'src/modules/users/schemas/user.schema';
+import { User, UserDocument } from 'src/modules/users/schemas/user.schema';
 import { UsersService } from 'src/modules/users/users.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import {
@@ -62,8 +62,12 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email }).exec();
+  }
+
+  async findByGoogleId(googleId: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ googleId }).exec();
   }
 
   async findUserByResetToken(token: string): Promise<any> {
@@ -324,7 +328,7 @@ export class AuthService {
     throw new InternalServerErrorException('Registration failed');
   }
 
-  async registerGoogleUser(data: any): Promise<User> {
+  async registerGoogleUser(data: any): Promise<UserDocument> {
     try {
       console.log('Data:', data);
       const hashedPassword = await bcrypt.hash(data.password, 10);
