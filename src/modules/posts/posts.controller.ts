@@ -182,7 +182,7 @@ export class PostsController {
     return this.postsService.deletePost(id, user.userId, user.role);
   }
   @UseGuards(JwtAuthGuard)
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  //@Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':id/like')
   likePost(
     @Param('id') postId: string,
@@ -192,7 +192,7 @@ export class PostsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  //  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':id/bookmark')
   bookmarkPost(
     @Param('id') postId: string,
