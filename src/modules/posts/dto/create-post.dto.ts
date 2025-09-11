@@ -1,5 +1,5 @@
 import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
-
+import slugify from 'slugify';
 export interface PostImage {
   secure_url: string;
   public_id: string;
@@ -61,4 +61,23 @@ export enum UserPostType {
 export enum PostStatus {
   PUBLISHED = 'published',
   PROMOTED = 'promoted',
+}
+
+export function generateSlugFromContent(content: string): string {
+  // Remove HTML tags
+  const plainContent = content.replace(/<[^>]*>/g, '');
+
+  // Split into words
+  const words = plainContent.split(/\s+/);
+
+  // Remove words that are URLs or start with http/https/www
+  const filteredWords = words.filter(
+    (w) => !/^https?:\/\//i.test(w) && !/^www\./i.test(w),
+  );
+
+  // Take first 12 safe words
+  const safeWords = filteredWords.slice(0, 12).join(' ') || 'post';
+
+  // Slugify
+  return slugify(safeWords, { lower: true, strict: true });
 }

@@ -1,7 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import slugify from 'slugify';
-import { PostImage, PostStatus } from '../dto/create-post.dto';
+import {
+  generateSlugFromContent,
+  PostImage,
+  PostStatus,
+} from '../dto/create-post.dto';
 const { nanoid } = require('nanoid');
 export type PostDocument = HydratedDocument<Post>;
 
@@ -61,10 +64,11 @@ export const PostSchema = SchemaFactory.createForClass(Post);
 PostSchema.pre('save', async function (next) {
   if (!this.isNew) return next(); // Only create slug on new documents
 
-  const baseSlug = slugify(this.content.slice(0, 50), {
-    lower: true,
-    strict: true,
-  });
+  // const baseSlug = slugify(this.content.slice(0, 50), {
+  //   lower: true,
+  //   strict: true,
+  // });
+  const baseSlug = generateSlugFromContent(this.content);
   const shortId = nanoid(6);
   this.slug = baseSlug;
   this.slugId = shortId;
