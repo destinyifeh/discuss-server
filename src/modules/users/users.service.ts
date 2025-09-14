@@ -63,8 +63,9 @@ export class UsersService {
   }
 
   async getUserByUsername(username: string) {
+    console.log(username, 'usernameeee');
     const user = await this.userModel
-      .findOne({ username })
+      .findOne({ username: new RegExp(`^${username}$`, 'i') })
       .select(selectedFields)
       .lean();
 

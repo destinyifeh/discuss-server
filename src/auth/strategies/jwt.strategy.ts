@@ -9,7 +9,7 @@ import { User } from 'src/modules/users/schemas/user.schema';
 
 interface JwtPayload {
   sub: string; // user ID
-  username: string;
+  email: string;
   iat: number;
   exp: number;
 }
@@ -79,6 +79,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: user._id.toString(),
       username: user.username,
+      email: user.email,
       role: user.role,
       // ...user,
     };

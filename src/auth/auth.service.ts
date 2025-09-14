@@ -157,8 +157,8 @@ export class AuthService {
     }
   }
 
-  async validateUser(username: string, pass: string): Promise<any> {
-    const user = await this.userModel.findOne({ username }).exec();
+  async validateUser(email: string, pass: string): Promise<any> {
+    const user = await this.userModel.findOne({ email }).exec();
 
     if (!user) throw new NotFoundException('User not found');
 
@@ -172,7 +172,8 @@ export class AuthService {
   }
 
   async login(user: any, res: Response) {
-    const payload = { username: user.username, sub: user._id };
+    console.log(user, 'llg');
+    const payload = { email: user.email, sub: user._id };
 
     const accessToken = this.jwtService.sign(payload);
 
@@ -208,7 +209,7 @@ export class AuthService {
       const isMatch = await bcrypt.compare(token, user.refreshToken);
       if (!isMatch) throw new ForbiddenException('Invalid refresh token');
 
-      const newPayload = { username: user.username, sub: user._id };
+      const newPayload = { email: user.email, sub: user._id };
       const accessToken = this.jwtService.sign(newPayload);
       const refreshToken = this.jwtService.sign(newPayload, {
         secret: this.jwtRefreshSecret,
@@ -364,7 +365,7 @@ export class AuthService {
 
     console.log(user, 'userMeett');
 
-    const newPayload = { username: user.username, sub: user._id };
+    const newPayload = { email: user.email, sub: user._id };
     const accessToken = this.jwtService.sign(newPayload);
     const refreshToken = this.jwtService.sign(newPayload, {
       secret: this.jwtRefreshSecret,
