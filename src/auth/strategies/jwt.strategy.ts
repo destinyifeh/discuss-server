@@ -9,7 +9,7 @@ import { User } from 'src/modules/users/schemas/user.schema';
 
 interface JwtPayload {
   sub: string; // user ID
-  email: string;
+  username: string;
   iat: number;
   exp: number;
 }

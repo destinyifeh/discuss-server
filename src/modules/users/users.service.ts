@@ -63,7 +63,6 @@ export class UsersService {
   }
 
   async getUserByUsername(username: string) {
-    console.log(username, 'usernameeee');
     const user = await this.userModel
       .findOne({ username: new RegExp(`^${username}$`, 'i') })
       .select(selectedFields)
@@ -186,16 +185,20 @@ export class UsersService {
 
     /* -------- username uniqueness check ----------------------- */
     if (dto.username && dto.username !== current.username) {
-      const taken = await this.userModel
-        .findOne({ username: dto.username })
-        .lean();
+      const taken = await this.userModel.findOne({
+        usernameLower: dto.username.toLowerCase(),
+        _id: { $ne: id },
+      });
       if (taken) throw new ConflictException('Username is already in use');
     }
 
     /* -------- build updates object ---------------------------- */
-    const updates: any = {
-      ...dto,
-    };
+    const updates: any = { ...dto };
+
+    if (dto.username) {
+      updates.username = dto.username;
+      updates.usernameLower = dto.username.toLowerCase();
+    }
 
     /* -------- handle cover image ------------------------------ */
     if (coverFile) {

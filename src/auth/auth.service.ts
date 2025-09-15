@@ -157,8 +157,13 @@ export class AuthService {
     }
   }
 
-  async validateUser(email: string, pass: string): Promise<any> {
-    const user = await this.userModel.findOne({ email }).exec();
+  async validateUser(username: string, pass: string): Promise<any> {
+    const normalizedUsername = username.toLowerCase();
+    // const user = await this.userModel
+    //   .findOne({ usernameLower: normalizedUsername })
+    //   .exec();
+
+    const user = await this.userModel.findOne({ username }).exec();
 
     if (!user) throw new NotFoundException('User not found');
 
@@ -173,7 +178,7 @@ export class AuthService {
 
   async login(user: any, res: Response) {
     console.log(user, 'llg');
-    const payload = { email: user.email, sub: user._id };
+    const payload = { username: user.username, sub: user._id };
 
     const accessToken = this.jwtService.sign(payload);
 
@@ -209,7 +214,7 @@ export class AuthService {
       const isMatch = await bcrypt.compare(token, user.refreshToken);
       if (!isMatch) throw new ForbiddenException('Invalid refresh token');
 
-      const newPayload = { email: user.email, sub: user._id };
+      const newPayload = { username: user.username, sub: user._id };
       const accessToken = this.jwtService.sign(newPayload);
       const refreshToken = this.jwtService.sign(newPayload, {
         secret: this.jwtRefreshSecret,
@@ -279,14 +284,17 @@ export class AuthService {
 
       // ① Early lookup
       const existing = await this.userModel.findOne({
-        $or: [{ email: data.email }, { username: data.username }],
+        $or: [
+          { email: data.email },
+          { usernameLower: data.username.toLowerCase() },
+        ],
       });
 
       if (existing) {
         if (existing.email === data.email) {
           throw new ConflictException('Email is already in use');
         }
-        if (existing.username === data.username) {
+        if (existing.usernameLower === data.username.toLowerCase()) {
           throw new ConflictException('Username is already taken');
         }
       }
@@ -294,6 +302,7 @@ export class AuthService {
       const hashedPassword = await bcrypt.hash(data.password, 10);
       const createdUser = new this.userModel({
         ...data,
+        usernameLower: data.username.toLowerCase(),
         password: hashedPassword,
         avatar: avatar?.url ?? null,
         avatar_public_id: avatar?.key ?? null,
@@ -365,7 +374,7 @@ export class AuthService {
 
     console.log(user, 'userMeett');
 
-    const newPayload = { email: user.email, sub: user._id };
+    const newPayload = { username: user.username, sub: user._id };
     const accessToken = this.jwtService.sign(newPayload);
     const refreshToken = this.jwtService.sign(newPayload, {
       secret: this.jwtRefreshSecret,

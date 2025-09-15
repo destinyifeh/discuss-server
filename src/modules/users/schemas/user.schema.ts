@@ -13,6 +13,9 @@ export class User {
   @Prop({ unique: true, required: true })
   username: string;
 
+  @Prop({ required: true, unique: true, index: true })
+  usernameLower: string;
+
   @Prop({ type: String, default: null })
   googleId: string;
 
