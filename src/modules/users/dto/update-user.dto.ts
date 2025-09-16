@@ -54,3 +54,14 @@ export class MailUserDto {
   @IsString()
   subject: string;
 }
+
+export class GoogleUsernameDto {
+  @IsString()
+  @MinLength(3, { message: 'Username must be at least 3 characters.' })
+  @MaxLength(20, { message: 'Username must not exceed 20 characters.' })
+  @Matches(/^[a-zA-Z0-9_]+$/, {
+    message:
+      'Username can only contain letters, numbers, and underscores (no spaces).',
+  })
+  username: string;
+}

@@ -189,6 +189,7 @@ export class UsersService {
         usernameLower: dto.username.toLowerCase(),
         _id: { $ne: id },
       });
+
       if (taken) throw new ConflictException('Username is already in use');
     }
 
@@ -414,7 +415,7 @@ export class UsersService {
       throw new BadRequestException('You cannot follow yourself');
     }
 
-    /** 1️⃣ Fetch both users */
+    /** Fetch both users */
     const [currentUser, targetUser] = await Promise.all([
       this.userModel
         .findById(currentUserId)
@@ -425,12 +426,12 @@ export class UsersService {
     if (!currentUser) throw new NotFoundException('Current user not found');
     if (!targetUser) throw new NotFoundException('Target user not found');
 
-    /** 2️⃣ Check if already following */
+    /** Check if already following */
     const isAlreadyFollowing = currentUser.following.some((id) =>
       id.equals(targetUserId),
     );
     console.log(isAlreadyFollowing, 'foll22');
-    /** 3️⃣ Prepare atomic updates */
+    /** Prepare atomic updates */
     const userUpdate = isAlreadyFollowing
       ? { $pull: { following: new Types.ObjectId(targetUserId) } }
       : { $addToSet: { following: new Types.ObjectId(targetUserId) } };
@@ -439,14 +440,14 @@ export class UsersService {
       ? { $pull: { followers: new Types.ObjectId(currentUserId) } }
       : { $addToSet: { followers: new Types.ObjectId(currentUserId) } };
 
-    /** 4️⃣ Perform updates */
+    /** Perform updates */
     await Promise.all([
       this.userModel.updateOne({ _id: currentUserId }, userUpdate),
       this.userModel.updateOne({ _id: targetUserId }, targetUpdate),
     ]);
     console.log(isAlreadyFollowing, 'foll25');
 
-    /** 5️⃣ Optional: Send notification */
+    /** Optional: Send notification */
     if (!isAlreadyFollowing) {
       await this.notificationService.createNotification({
         type: 'followed',
@@ -458,7 +459,7 @@ export class UsersService {
       console.log(isAlreadyFollowing, 'foll29');
     }
 
-    /** 6️⃣ Return updated counts */
+    /** Return updated counts */
     const [updatedCurrent, updatedTarget] = await Promise.all([
       this.userModel.findById(currentUserId).select('following'),
       this.userModel.findById(targetUserId).select('followers following'),

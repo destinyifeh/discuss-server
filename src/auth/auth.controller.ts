@@ -19,6 +19,7 @@ import { Request, Response } from 'express';
 import { USERS_AVATAR_FOLDER } from 'src/common/utils/constants/config';
 import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { multerConfig } from 'src/config/multer.config';
+import { GoogleUsernameDto } from 'src/modules/users/dto/update-user.dto';
 import { MediaUploadService } from './../modules/media-upload/media-upload.service';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -144,5 +145,15 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     return this.authService.getGoogleLoginUser(user.userId, res);
+  }
+
+  @Patch('set-google-username')
+  @UseGuards(JwtAuthGuard)
+  async setGoogleUserUsername(
+    @Body() data: GoogleUsernameDto,
+    @CurrentUser() user: { userId: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.setGoogleUserUsername(user.userId, data, res);
   }
 }

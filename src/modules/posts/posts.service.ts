@@ -36,13 +36,6 @@ export class PostsService {
     // images?: UploadApiResponse[] | null,
     images?: { url: string; key: string }[] | null,
   ) {
-    // const formattedImages: PostImage[] = Array.isArray(images)
-    //   ? images.map((img) => ({
-    //       secure_url: img.secure_url,
-    //       public_id: img.public_id,
-    //     }))
-    //   : [];
-
     const formattedImages: PostImage[] = Array.isArray(images)
       ? images.map((img) => ({
           secure_url: img.url,
@@ -366,7 +359,7 @@ export class PostsService {
         );
       }
 
-      // 🔹 1. Collect public_ids of post images
+      // 1. Collect public_ids of post images
       const postImagePublicIds =
         post.images
           ?.filter((img) => img?.public_id)
@@ -375,13 +368,13 @@ export class PostsService {
       // 🔹 2. Fetch comments related to this post
       const comments = await this.commentModel.find({ post: id });
 
-      // 🔹 3. Collect public_ids of all comment images
+      // 3. Collect public_ids of all comment images
       const commentImagePublicIds = comments
         .flatMap((comment) => comment.images ?? [])
         .filter((img) => img?.public_id)
         .map((img) => img.public_id);
 
-      // 🔹 4. Combine all image public_ids to delete from Cloudinary
+      // 4. Combine all image public_ids to delete from Cloudinary
       const allPublicIdsToDelete = [
         ...postImagePublicIds,
         ...commentImagePublicIds,
@@ -397,10 +390,10 @@ export class PostsService {
         }
       }
 
-      // 🔹 5. Delete comments
+      // 5. Delete comments
       await this.commentModel.deleteMany({ post: new Types.ObjectId(id) });
 
-      // 🔹 6. Delete post
+      // 6. Delete post
       await this.postModel.deleteOne({ _id: id });
 
       return {

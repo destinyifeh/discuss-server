@@ -3,11 +3,12 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Profile, Strategy } from 'passport-google-oauth20';
-
 import { InjectModel } from '@nestjs/mongoose';
+import { PassportStrategy } from '@nestjs/passport';
+import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
+import { Profile, Strategy } from 'passport-google-oauth20';
+import { AccountStatus } from 'src/common/utils/types/user.type';
 import { User } from 'src/modules/users/schemas/user.schema';
 import { UsersService } from 'src/modules/users/users.service';
 import { AuthService } from '../auth.service';
@@ -38,12 +39,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     _refreshToken: string,
     profile: Profile,
   ) {
-    // Extract safe profile fields
     const email = profile.emails?.[0]?.value;
     if (!email) throw new UnauthorizedException('Google account has no email');
 
     const googleId = profile.id;
-    const username = profile.name?.givenName;
+    const preferredUsername = profile.name?.givenName || `user${Date.now()}`;
     const avatar = profile.photos?.[0]?.value || null;
 
     try {
@@ -51,25 +51,51 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       let user = await this.authService.findByGoogleId(googleId);
 
       if (!user) {
-        // If no googleId found, maybe link by email (optional)
+        // Try linking with existing email
         user = await this.authService.findByEmail(email);
 
         if (!user) {
-          // New user, register
+          // Check if username already exists (case-insensitive)
+          const usernameTaken =
+            await this.authService.findByUsername(preferredUsername);
+
+          if (usernameTaken) {
+            // Instead of rejecting, mark them as "pending username"
+            user = await this.authService.registerGoogleUser({
+              googleId,
+              email,
+              username: googleId, // no username yet
+              avatar,
+              status: AccountStatus.PENDING_USERNAME, // flag in schema
+              password: googleId,
+            });
+
+            // Instead of giving full access, return special token
+            // that frontend uses to redirect to /choose-username
+            const token = this.authService.generateJwt(user);
+            return token;
+          }
+
+          // Safe to register with preferred username
           user = await this.authService.registerGoogleUser({
             googleId,
             email,
-            username,
+            username: preferredUsername,
             avatar,
-            password: googleId, // you might not need this at all for OAuth users
+            password: googleId,
           });
         } else {
-          // Existing email-based user → link googleId
+          // Existing email user → just link googleId
           user.googleId = googleId;
+
+          if (!user.password) {
+            user.password = await bcrypt.hash(googleId, 10);
+          }
           await user.save();
         }
       }
 
+      // Normal login flow
       const token = this.authService.generateJwt(user);
       return token;
     } catch (error) {

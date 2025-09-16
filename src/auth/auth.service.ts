@@ -18,6 +18,7 @@ import { capitalizeName } from 'src/common/utils/formatter';
 import { AccountStatus } from 'src/common/utils/types/user.type';
 import { toSafeUser } from 'src/common/utils/user.mapper';
 import { MailService } from 'src/mail/mail.service';
+import { GoogleUsernameDto } from 'src/modules/users/dto/update-user.dto';
 import { User, UserDocument } from 'src/modules/users/schemas/user.schema';
 import { UsersService } from 'src/modules/users/users.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
@@ -65,6 +66,10 @@ export class AuthService {
   async findByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email }).exec();
   }
+  async findByUsername(username: string): Promise<UserDocument | null> {
+    const normalizedUsername = username.toLowerCase();
+    return this.userModel.findOne({ usernameLower: normalizedUsername }).exec();
+  }
 
   async findByGoogleId(googleId: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ googleId }).exec();
@@ -92,7 +97,7 @@ export class AuthService {
       httpOnly: true,
       secure: isProd,
       sameSite: isProd ? 'none' : 'lax',
-      maxAge: 5 * 60 * 1000, // expire in 5 mins
+      maxAge: 15 * 60 * 1000, // expire in 15 mins
     });
   }
 
@@ -159,11 +164,9 @@ export class AuthService {
 
   async validateUser(username: string, pass: string): Promise<any> {
     const normalizedUsername = username.toLowerCase();
-    // const user = await this.userModel
-    //   .findOne({ usernameLower: normalizedUsername })
-    //   .exec();
-
-    const user = await this.userModel.findOne({ username }).exec();
+    const user = await this.userModel
+      .findOne({ usernameLower: normalizedUsername })
+      .exec();
 
     if (!user) throw new NotFoundException('User not found');
 
@@ -172,12 +175,10 @@ export class AuthService {
       throw new NotFoundException('Incorrect password');
     }
     this.clearUserStatusHistory(user);
-    // const { password, refreshToken, ...safeUser } = user;
     return user;
   }
 
   async login(user: any, res: Response) {
-    console.log(user, 'llg');
     const payload = { username: user.username, sub: user._id };
 
     const accessToken = this.jwtService.sign(payload);
@@ -191,7 +192,7 @@ export class AuthService {
     this.setAuthCookies(res, accessToken, refreshToken);
 
     const safeUser = toSafeUser(user);
-    console.log(safeUser, 'destoo');
+
     return {
       user: safeUser,
       accessToken: accessToken,
@@ -204,7 +205,7 @@ export class AuthService {
       const payload = this.jwtService.verify(token, {
         secret: this.jwtRefreshSecret,
       });
-      console.log(payload, 'payloadbver');
+
       const user = await this.userModel.findById(payload.sub).exec();
 
       if (!user) {
@@ -282,7 +283,7 @@ export class AuthService {
     try {
       console.log('Data:', data);
 
-      // ① Early lookup
+      //  Early lookup
       const existing = await this.userModel.findOne({
         $or: [
           { email: data.email },
@@ -345,6 +346,7 @@ export class AuthService {
       const createdUser = new this.userModel({
         ...data,
         password: hashedPassword,
+        usernameLower: data.username.toLowerCase(),
       });
 
       const savedUser = await createdUser.save();
@@ -372,7 +374,17 @@ export class AuthService {
       throw new ForbiddenException('User not found');
     }
 
-    console.log(user, 'userMeett');
+    if (user.status === AccountStatus.PENDING_USERNAME) {
+      const token = this.generateJwt(user);
+
+      this.setGoogleAuthTempCookie(res, token);
+      const safeUser = toSafeUser(user);
+      return {
+        userId: safeUser._id,
+        status: safeUser.status,
+        requireUsername: true,
+      };
+    }
 
     const newPayload = { username: user.username, sub: user._id };
     const accessToken = this.jwtService.sign(newPayload);
@@ -405,6 +417,68 @@ export class AuthService {
 
     // 3. Redirect to frontend
     return res.redirect(`${process.env.CLIENT_URL}/login/google/callback`);
+  }
+
+  async setGoogleUserUsername(
+    id: string,
+    dto: GoogleUsernameDto,
+    res: Response, // make sure this is passed from controller with @Res()
+  ) {
+    // 1. Find current user
+    const currentUser = await this.userModel.findById(id).exec();
+    if (!currentUser) throw new NotFoundException('User not found');
+
+    // 2. Ensure username is unique (case-insensitive)
+    const usernameTaken = await this.userModel.findOne({
+      usernameLower: dto.username.toLowerCase(),
+      _id: { $ne: id }, // exclude current user
+    });
+    if (usernameTaken) {
+      throw new ConflictException('Username is already taken');
+    }
+
+    // 3. Prepare updates
+    const updates: Partial<User> = {
+      username: dto.username,
+      usernameLower: dto.username.toLowerCase(),
+      status: AccountStatus.ACTIVE,
+    };
+
+    // 4. Update user
+    const user = await this.userModel
+      .findByIdAndUpdate(id, updates, {
+        new: true,
+        runValidators: true,
+      })
+      .exec();
+
+    if (!user) throw new NotFoundException('User not found after update');
+
+    // 5. Generate tokens
+    const newPayload = { username: user.username, sub: user._id };
+    const accessToken = this.jwtService.sign(newPayload);
+    const refreshToken = this.jwtService.sign(newPayload, {
+      secret: this.jwtRefreshSecret,
+      expiresIn: this.jwtRefreshTokenExpirationPeriod,
+    });
+
+    // 6. Save hashed refresh token in DB
+    await this.updateRefreshToken(user._id.toString(), refreshToken);
+
+    // 7. Set cookies
+    this.setAuthCookies(res, accessToken, refreshToken);
+
+    // 8. Clear temp Google cookie (if you use one during pending signup)
+    this.clearGoogleAuthTempCookie(res);
+
+    // 9. Return safe user
+    const safeUser = toSafeUser(user);
+
+    return {
+      user: safeUser,
+      accessToken,
+      refreshToken,
+    };
   }
 
   async changePassword(id: string, oldPassword: string, newPassword: string) {

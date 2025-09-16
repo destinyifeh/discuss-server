@@ -17,9 +17,6 @@ interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {
-    // const cookieExtractor = (req: Request): string | null => {
-    //   return req.cookies?.encrypted_access_token ?? null; // match cookie name
-    // };
     const cookieExtractor = (req: Request): string | null => {
       if (!req || !req.cookies) return null;
 
@@ -81,7 +78,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       username: user.username,
       email: user.email,
       role: user.role,
-      // ...user,
     };
   }
 }

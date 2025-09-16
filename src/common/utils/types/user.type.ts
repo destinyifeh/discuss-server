@@ -11,6 +11,7 @@ export enum AccountStatus {
   BANNED = 'banned',
   SUSPENDED = 'suspended',
   INACTIVE = 'inactive',
+  PENDING_USERNAME = 'pending_username',
 }
 
 export class ModerationAction {
