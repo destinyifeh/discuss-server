@@ -19,6 +19,9 @@ export class QuotedComment {
 
   @Prop({ type: [String], default: [] })
   quotedImage?: string[];
+
+  @Prop()
+  quotedContentCreatedDate: string;
 }
 
 export const QuotedCommentSchema = SchemaFactory.createForClass(QuotedComment);

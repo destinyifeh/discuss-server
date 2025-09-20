@@ -26,6 +26,9 @@ class QuotedCommentDto {
   @IsOptional()
   @IsArray()
   quotedImage?: string[];
+
+  @IsString()
+  quotedContentCreatedDate: string;
 }
 
 export class CreateCommentDto {
@@ -57,4 +60,5 @@ export interface QuotedCommentProps {
   quotedId?: string;
   quotedUserId?: string;
   quotedImage?: string[];
+  quotedContentCreatedDate?: string;
 }
