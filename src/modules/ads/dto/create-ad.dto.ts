@@ -1,4 +1,10 @@
-import { IsEnum, IsOptional, IsString, IsUrl } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUrl,
+  ValidateIf,
+} from 'class-validator';
 
 enum AdType {
   sponsored = 'sponsored',
@@ -35,6 +41,7 @@ enum AdStatus {
 }
 
 enum AdCTA {
+  None = 'None',
   LearnMore = 'Learn More',
   SignUp = 'Sign Up',
   GetStarted = 'Get Started',
@@ -96,9 +103,11 @@ export class CreateAdDto {
   @IsString()
   price: string;
 
+  @ValidateIf((o) => o.targetUrl !== '')
   @IsUrl()
-  targetUrl: string;
+  targetUrl?: string;
 
+  @IsOptional()
   @IsEnum(AdCTA)
   callToAction: AdCTA;
 

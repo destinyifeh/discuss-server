@@ -335,33 +335,6 @@ export class AdsService {
     }
   }
 
-  async activateAd2(id: string, adOwnerId: string) {
-    try {
-      const ad = await this.adModel.findByIdAndUpdate(
-        id,
-        { status: AdStatus.ACTIVE, activatedDate: new Date() },
-        { new: true },
-      );
-
-      if (!ad) throw new NotFoundException('Ad not found');
-
-      // Notify user
-      await this.notificationsService.createNotification({
-        recipient: adOwnerId.toString(),
-        type: 'ad_activated',
-        content: `Your ad "${ad.title}" has been activated.`,
-        senderName: 'Admin',
-      });
-
-      // email action here
-
-      return { code: '200', message: 'Ad activated', ad };
-    } catch (error) {
-      console.error('Activated ad error:', error);
-      throw error;
-    }
-  }
-
   async activateAd(id: string, adOwnerId: string) {
     try {
       // Fetch ad first to get duration
@@ -463,12 +436,6 @@ export class AdsService {
     }
   }
 
-  async deleteAd2(id: string) {
-    const res = await this.adModel.deleteOne({ _id: id });
-    if (res.deletedCount === 0) throw new NotFoundException('Ad not found');
-    return { deleted: true };
-  }
-
   async deleteAd(id: string) {
     const ad = await this.adModel.findById(id);
     if (!ad) throw new NotFoundException('Ad not found');
@@ -504,56 +471,6 @@ export class AdsService {
 
     if (!ad) throw new NotFoundException('Ad not found');
     return { code: '200', ad };
-  }
-
-  async getBannerAds2(section: string) {
-    console.log(section, 'sectionnnnn');
-    const ads = await this.adModel.find({
-      section: section.toLowerCase(),
-      status: AdStatus.ACTIVE,
-      type: 'banner',
-    });
-    console.log(ads, 'ad');
-
-    if (!ads || ads.length === 0) {
-      throw new NotFoundException('No active ads found for this section');
-    }
-
-    // Shuffle each time it's called
-    const shuffledAds = ads.sort(() => Math.random() - 0.5);
-
-    return { code: '200', ads: shuffledAds };
-  }
-  async getBannerAds3(section: string) {
-    const sectionKey = section.toLowerCase();
-
-    // Load ads into rotation if not loaded or empty
-    if (
-      !this.rotationMap[sectionKey] ||
-      this.rotationMap[sectionKey].ads.length === 0
-    ) {
-      const ads = await this.adModel.find({
-        section: sectionKey,
-        status: AdStatus.ACTIVE,
-        type: 'banner',
-      });
-
-      if (!ads || ads.length === 0) {
-        throw new NotFoundException('No active ads found for this section');
-      }
-
-      // Shuffle once
-      const shuffledAds = ads.sort(() => Math.random() - 0.5);
-      this.rotationMap[sectionKey] = { index: 0, ads: shuffledAds };
-    }
-
-    const rotation = this.rotationMap[sectionKey];
-
-    // Get next ad in sequence
-    const ad = rotation.ads[rotation.index];
-    rotation.index = (rotation.index + 1) % rotation.ads.length;
-
-    return { code: '200', ads: [ad] }; // Return one ad at a time
   }
 
   async getBannerAds(placement: AdPlacementProps, section?: string) {

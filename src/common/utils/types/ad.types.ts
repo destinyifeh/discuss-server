@@ -1,4 +1,5 @@
 export enum AdCTA {
+  None = 'None',
   LearnMore = 'Learn More',
   SignUp = 'Sign Up',
   GetStarted = 'Get Started',

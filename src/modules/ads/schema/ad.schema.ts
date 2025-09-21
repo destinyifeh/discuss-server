@@ -57,7 +57,7 @@ export class Ad {
 
   @Prop() impressions?: number;
 
-  @Prop({ enum: AdCTA, default: AdCTA.LearnMore })
+  @Prop({ enum: AdCTA })
   callToAction: AdCTA;
 }
 
