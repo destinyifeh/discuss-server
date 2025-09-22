@@ -32,6 +32,7 @@ import {
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guards';
+import { UserThrottlerGuard } from './guards/throttlerGuard';
 
 @Controller('auth')
 export class AuthController {
@@ -41,7 +42,7 @@ export class AuthController {
     private readonly mediaUploadService: MediaUploadService,
   ) {}
 
-  @UseGuards(LocalAuthGuard)
+  @UseGuards(UserThrottlerGuard, LocalAuthGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(
@@ -59,13 +60,13 @@ export class AuthController {
   ) {
     return this.authService.logout(res, user.userId);
   }
-
+  @UseGuards(UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('forgot-password')
   async forgotPass(@Body() data: ForgotPassDto) {
     return this.authService.forgotPassword(data.email);
   }
-
+  @UseGuards(UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('reset-password')
   async resetPassword(@Body() data: ResetPassDto) {
@@ -89,7 +90,7 @@ export class AuthController {
       null;
     return this.authService.refreshToken(token, res);
   }
-
+  @UseGuards(UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   @UseInterceptors(FileInterceptor('avatar', multerConfig))
@@ -108,6 +109,7 @@ export class AuthController {
     return this.authService.registerUser(data, result);
   }
 
+  @UseGuards(UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch('change-password')
   @UseGuards(JwtAuthGuard)
@@ -124,7 +126,7 @@ export class AuthController {
   }
 
   //Google auth
-
+  @UseGuards(UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Get('google/login')
   @UseGuards(GoogleAuthGuard)

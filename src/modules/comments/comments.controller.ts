@@ -18,6 +18,7 @@ import { MediaUploadService } from '../media-upload/media-upload.service';
 
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { UserThrottlerGuard } from 'src/auth/guards/throttlerGuard';
 import { COMMENTS_IMAGE_FOLDER } from 'src/common/utils/constants/config';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto, UpdateCommentDto } from './dto/create-comment.dto';
@@ -28,8 +29,8 @@ export class CommentsController {
     private readonly commentService: CommentsService,
     private readonly mediaUploadService: MediaUploadService,
   ) {}
-
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post()
   @UseInterceptors(FilesInterceptor('images', 2, multerConfig))
   async createComment(
@@ -63,7 +64,6 @@ export class CommentsController {
     return this.commentService.findByPost(postId);
   }
 
-  //@Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @Patch(':id/like')
   async like(
@@ -74,7 +74,6 @@ export class CommentsController {
     return this.commentService.like(commentId, userId);
   }
 
-  // @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @Patch(':id/dislike')
   async dislike(

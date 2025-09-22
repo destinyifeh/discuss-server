@@ -19,6 +19,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { UserThrottlerGuard } from 'src/auth/guards/throttlerGuard';
 import { ADS_IMAGE_FOLDER } from 'src/common/utils/constants/config';
 import { AvatarValidationPipe } from 'src/common/utils/pipes/validatio.pipe';
 import { AdStatus } from 'src/common/utils/types/ad.types';
@@ -34,7 +35,7 @@ export class AdsController {
     private readonly mediaUploadService: MediaUploadService,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post()
   @UseInterceptors(FileInterceptor('image', multerConfig))
@@ -119,7 +120,7 @@ export class AdsController {
     return this.adsService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/pause/:adOwnerId')
   pauseAd(
@@ -130,7 +131,7 @@ export class AdsController {
     return this.adsService.pauseAd(adId, dto.reason, adOwnerId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/approve/:adOwnerId')
   approveAd(
@@ -140,7 +141,7 @@ export class AdsController {
     return this.adsService.approveAd(adId, adOwnerId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/activate/:adOwnerId')
   activateAd(
@@ -150,7 +151,7 @@ export class AdsController {
     return this.adsService.activateAd(adId, adOwnerId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/reject/:adOwnerId')
   rejectAd(
@@ -160,8 +161,7 @@ export class AdsController {
   ) {
     return this.adsService.rejectAd(adId, dto.reason, adOwnerId);
   }
-
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':adId/resume')
   reaumeAd(@Param('adId') adId: string) {

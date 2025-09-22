@@ -17,6 +17,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { UserThrottlerGuard } from 'src/auth/guards/throttlerGuard';
 import { POSTS_IMAGE_FOLDER } from 'src/common/utils/constants/config';
 import { Role } from 'src/common/utils/types/user.type';
 import { multerConfig } from 'src/config/multer.config';
@@ -37,9 +38,9 @@ export class PostsController {
     private readonly postsService: PostsService,
   ) {}
 
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post()
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('images', 4, multerConfig))
   async cratePost(
     @Body() data: CreatePostDto,
@@ -153,9 +154,9 @@ export class PostsController {
     });
   }
 
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('images', 4, multerConfig))
   async updatePost(
     @Param('id') postId: string,
@@ -172,7 +173,7 @@ export class PostsController {
     return this.postsService.updatePost(postId, data, result);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Delete(':id')
   async deletePost(
@@ -182,7 +183,6 @@ export class PostsController {
     return this.postsService.deletePost(id, user.userId, user.role);
   }
   @UseGuards(JwtAuthGuard)
-  //@Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':id/like')
   likePost(
     @Param('id') postId: string,
@@ -192,7 +192,6 @@ export class PostsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  //  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':id/bookmark')
   bookmarkPost(
     @Param('id') postId: string,
@@ -202,7 +201,6 @@ export class PostsController {
   }
 
   @Post(':id/view')
-  // @UseGuards(JwtAuthGuard)
   viewPost(
     @Param('id') postId: string,
     @CurrentUser() user: { userId: string },
@@ -237,22 +235,19 @@ export class PostsController {
   }
 
   @Get('comment-count/:id')
-  //@UseGuards(JwtAuthGuard)
   async countPostComments(@Param('id') id: string) {
     return this.postsService.countPostComments(id);
   }
-
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post(':id/promote')
-  @UseGuards(JwtAuthGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   async promotePost(@Param('id') id: string) {
     return this.postsService.promotePost(id);
   }
-
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post(':id/demote')
-  @UseGuards(JwtAuthGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   async demotePost(@Param('id') id: string) {
     return this.postsService.demotePost(id);
