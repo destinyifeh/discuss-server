@@ -69,6 +69,7 @@ enum AdCTA {
   ContactUs = 'Contact Us',
   RequestAccess = 'Request Access',
   StartNow = 'Start Now',
+  Whatsapp = 'Whatsapp',
 }
 
 export type AdPlacementProps =
