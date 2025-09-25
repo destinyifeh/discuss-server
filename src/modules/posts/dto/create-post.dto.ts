@@ -42,8 +42,15 @@ export type SectionName =
   | 'Jobs'
   | 'News'
   | 'Entertainment'
-  | 'Celebrity';
-
+  | 'Celebrity'
+  | 'Health'
+  | 'Properties'
+  | 'Family'
+  | 'Autos'
+  | 'Business'
+  | 'Science'
+  | 'Finance'
+  | 'Culture';
 export interface GetPostsParams {
   page: number;
   limit: number;

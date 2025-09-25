@@ -30,7 +30,15 @@ export type Section =
   | 'news'
   | 'entertainment'
   | 'celebrity'
-  | 'home';
+  | 'home'
+  | 'health'
+  | 'properties'
+  | 'family'
+  | 'autos'
+  | 'business'
+  | 'science'
+  | 'finance'
+  | 'culture';
 
 enum AdStatus {
   Pending = 'pending',
