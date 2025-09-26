@@ -234,6 +234,11 @@ export class PostsController {
     return this.postsService.getPostBySlugId(slugId);
   }
 
+  @Get(':postId/related')
+  async getRelatedPosts(@Param('postId') postId: string) {
+    return this.postsService.getRelatedPosts(postId);
+  }
+
   @Get('comment-count/:id')
   async countPostComments(@Param('id') id: string) {
     return this.postsService.countPostComments(id);

@@ -628,6 +628,28 @@ export class PostsService {
     };
   }
 
+  async getRelatedPosts(postId: string) {
+    // Find the post first
+    const post = await this.postModel.findOne({ _id: postId }).lean();
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    // Query for related posts in the same section/category
+    const relatedPosts = await this.postModel
+      .find({
+        section: post.section, // same section
+        _id: { $ne: postId }, // exclude current post
+      })
+      .sort({ createdAt: -1 }) // latest first
+      .limit(5) // only return 5
+      .populate('user', 'username avatar')
+      .lean();
+
+    return relatedPosts;
+  }
+
   async countPostComments(postId: string) {
     const objectId = new Types.ObjectId(postId);
     const commentCount = await this.commentModel
