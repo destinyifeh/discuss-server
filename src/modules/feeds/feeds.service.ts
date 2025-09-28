@@ -10,6 +10,8 @@ import { FeedQuery } from './dto/feeds.dto';
 
 @Injectable()
 export class FeedsService {
+  private adPool: any[] = [];
+  private adIndex = 0;
   constructor(
     @InjectModel(Post.name) private readonly postModel: Model<Post>,
     @InjectModel(Ad.name) private readonly adModel: Model<Ad>,
@@ -246,27 +248,12 @@ export class FeedsService {
 
   // --------------------- Strategy C: Custom pattern ------------------------ //
   /** pattern string like "3,7,10" => insert ads at these absolute indices */
-  private patternMergeOld(posts: any[], ads: any[], pattern?: string) {
-    const positions = (pattern ?? '')
-      .split(',')
-      .map((n) => parseInt(n.trim()))
-      .filter((n) => !isNaN(n));
-    const out: any[] = [];
-    let postIdx = 0;
-    let adIdx = 0;
 
-    const totalLength = posts.length + Math.min(ads.length, positions.length);
-    for (let i = 0; i < totalLength; i++) {
-      if (positions.includes(i) && adIdx < ads.length) {
-        out.push({ _type: 'ad', data: ads[adIdx++] });
-      } else if (postIdx < posts.length) {
-        out.push({ _type: 'post', data: posts[postIdx++] });
-      }
-    }
-    return out;
-  }
-
-  private patternMerge(posts: any[], ads: any[], pattern: string = '4, 9, 15') {
+  private patternMerge2(
+    posts: any[],
+    ads: any[],
+    pattern: string = '4, 9, 15',
+  ) {
     console.log(pattern, 'patooo');
     // Shuffle ads
     for (let i = ads.length - 1; i > 0; i--) {
@@ -302,6 +289,191 @@ export class FeedsService {
       } else if (postIdx < posts.length) {
         out.push({ _type: 'post', data: posts[postIdx++] });
       }
+    }
+
+    return out;
+  }
+
+  // Keep this outside the function so it persists across calls
+
+  private patternMerge3(
+    posts: any[],
+    ads: any[],
+    pattern: string = '4, 9, 15',
+  ) {
+    console.log(pattern, 'patooo');
+
+    // If pool is empty or ads list has changed → refill and shuffle
+    if (this.adPool.length === 0 || this.adPool.length !== ads.length) {
+      this.adPool = [...ads]; // clone
+      for (let i = this.adPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this.adPool[i], this.adPool[j]] = [this.adPool[j], this.adPool[i]];
+      }
+      this.adIndex = 0;
+    }
+
+    // Parse pattern
+    let positions = (pattern ?? '')
+      .split(',')
+      .map((n) => parseInt(n.trim()))
+      .filter((n) => !isNaN(n));
+
+    if (positions.length > 1) {
+      const lastGap =
+        positions[positions.length - 1] - positions[positions.length - 2];
+      let lastPos = positions[positions.length - 1];
+      while (lastPos < posts.length + ads.length) {
+        lastPos += lastGap;
+        positions.push(lastPos);
+      }
+    }
+
+    const out: any[] = [];
+    let postIdx = 0;
+
+    const totalLength = posts.length + Math.min(ads.length, positions.length);
+    for (let i = 0; i < totalLength; i++) {
+      if (positions.includes(i)) {
+        // Take next ad from the pool
+        if (this.adIndex >= this.adPool.length) {
+          // Reset pool if exhausted
+          this.adPool = [...ads];
+          for (let i = this.adPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.adPool[i], this.adPool[j]] = [this.adPool[j], this.adPool[i]];
+          }
+          this.adIndex = 0;
+        }
+
+        out.push({ _type: 'ad', data: this.adPool[this.adIndex++] });
+      } else if (postIdx < posts.length) {
+        out.push({ _type: 'post', data: posts[postIdx++] });
+      }
+    }
+
+    return out;
+  }
+
+  private patternMerge4(
+    posts: any[],
+    ads: any[],
+    pattern: string = '4, 9, 15',
+  ) {
+    console.log(pattern, 'patooo');
+
+    // If pool is empty or ads list changed → refill and shuffle
+    if (this.adPool.length === 0 || this.adPool.length !== ads.length) {
+      this.adPool = [...ads];
+      for (let i = this.adPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this.adPool[i], this.adPool[j]] = [this.adPool[j], this.adPool[i]];
+      }
+      this.adIndex = 0;
+    }
+
+    // Parse pattern
+    let positions = (pattern ?? '')
+      .split(',')
+      .map((n) => parseInt(n.trim()))
+      .filter((n) => !isNaN(n));
+
+    if (positions.length > 1) {
+      const lastGap =
+        positions[positions.length - 1] - positions[positions.length - 2];
+      let lastPos = positions[positions.length - 1];
+      while (lastPos < posts.length + ads.length) {
+        lastPos += lastGap;
+        positions.push(lastPos);
+      }
+    }
+
+    const out: any[] = [];
+    let postIdx = 0;
+    let localAdsUsed: any[] = [];
+
+    const totalLength = posts.length + Math.min(ads.length, positions.length);
+    for (let i = 0; i < totalLength; i++) {
+      if (positions.includes(i)) {
+        // Check if we still have unused ads left in the pool
+        if (this.adIndex < this.adPool.length) {
+          const ad = this.adPool[this.adIndex++];
+          out.push({ _type: 'ad', data: ad });
+          localAdsUsed.push(ad);
+        }
+      } else if (postIdx < posts.length) {
+        out.push({ _type: 'post', data: posts[postIdx++] });
+      }
+    }
+
+    // 🟢 Only reset pool AFTER all ads in it have been used
+    if (this.adIndex >= this.adPool.length) {
+      this.adPool = [...ads];
+      for (let i = this.adPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this.adPool[i], this.adPool[j]] = [this.adPool[j], this.adPool[i]];
+      }
+      this.adIndex = 0;
+    }
+
+    return out;
+  }
+  private patternMerge(posts: any[], ads: any[], pattern: string = '4, 9, 15') {
+    console.log(pattern, 'patooo');
+
+    // Initialize pool if empty or ads changed
+    if (
+      this.adPool.length === 0 ||
+      this.adPool.map((a: any) => a._id).join(',') !==
+        ads.map((a: any) => a._id).join(',')
+    ) {
+      this.adPool = [...ads];
+      for (let i = this.adPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this.adPool[i], this.adPool[j]] = [this.adPool[j], this.adPool[i]];
+      }
+      this.adIndex = 0;
+    }
+
+    // Parse pattern into ad slots
+    let positions = (pattern ?? '')
+      .split(',')
+      .map((n) => parseInt(n.trim()))
+      .filter((n) => !isNaN(n));
+
+    if (positions.length > 1) {
+      const lastGap =
+        positions[positions.length - 1] - positions[positions.length - 2];
+      let lastPos = positions[positions.length - 1];
+      while (lastPos < posts.length + ads.length) {
+        lastPos += lastGap;
+        positions.push(lastPos);
+      }
+    }
+
+    const out: any[] = [];
+    let postIdx = 0;
+
+    const totalLength = posts.length + Math.min(ads.length, positions.length);
+    for (let i = 0; i < totalLength; i++) {
+      if (positions.includes(i)) {
+        // Insert next ad if available
+        if (this.adIndex < this.adPool.length) {
+          out.push({ _type: 'ad', data: this.adPool[this.adIndex++] });
+        }
+      } else if (postIdx < posts.length) {
+        out.push({ _type: 'post', data: posts[postIdx++] });
+      }
+    }
+
+    // ✅ Reset pool ONLY after all ads have been used
+    if (this.adIndex >= this.adPool.length) {
+      this.adPool = [...ads];
+      for (let i = this.adPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this.adPool[i], this.adPool[j]] = [this.adPool[j], this.adPool[i]];
+      }
+      this.adIndex = 0;
     }
 
     return out;
